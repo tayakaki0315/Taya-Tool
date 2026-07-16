@@ -6,7 +6,7 @@ type Language = "ja" | "en" | "zh";
 type SheetMode = "single" | "perExpert" | "custom";
 type WorkflowMode = "create" | "update";
 type UpdateSummaryLanguage = "ja" | "en";
-type ToolView = "excel" | "navi";
+type ToolView = "excel" | "slack" | "navi";
 type NaviLanguage = "en" | "ja" | "zh_cn" | "zh_tw" | "mn";
 type NaviMode = "PAST" | "CURRENT" | "BOTH";
 
@@ -33,6 +33,11 @@ type ExpertRecord = {
   availability: string;
   sheetName: string;
   warnings: string[];
+};
+
+type SlackExpertRecord = ExpertRecord & {
+  location: string;
+  screeningLabel: string;
 };
 
 const DATA_FIELDS = [
@@ -1003,6 +1008,189 @@ function parseExperts(raw: string) {
     .filter((record): record is ExpertRecord => Boolean(record));
 }
 
+function extractScreeningLabel(block: string) {
+  const labeled = block.match(
+    /Screening update(?:\s*\([^)]*\)|\s+\d{1,2}\/\d{1,2}\/\d{2,4})?\s*:?/i,
+  );
+  if (labeled) return cleanText(labeled[0]).replace(/\s*:?$/, ":");
+
+  const screened = block.match(/[\[【]\s*Screen(?:ed|ing)\b[^\]】]*[\]】]\s*:?/i);
+  if (screened) return cleanText(screened[0]);
+  return "Screening Questions:";
+}
+
+function extractExpertLocation(block: string) {
+  const location = block.match(
+    /This\s+(?:specialist|expert)\s+is\s+based\s+in\s+(.+?)\.(?=\s|$)/i,
+  );
+  return location ? cleanText(location[1]) : "";
+}
+
+function formatSlackScreening(source: string) {
+  const lines = formatScreening(source)
+    .split("\n")
+    .map((line) => cleanText(line))
+    .filter(Boolean);
+  const output: string[] = [];
+  let questionNumber = 0;
+
+  lines.forEach((line) => {
+    const question = line.match(/^Q(?:\d+)?\s*[).:\-]\s*(.*)$/i);
+    const answer = line.match(/^A(?:\d+)?\s*[).:\-]\s*(.*)$/i);
+    if (question) {
+      if (output.length) output.push("");
+      questionNumber += 1;
+      output.push(`Q${questionNumber}) ${cleanText(question[1])}`);
+      return;
+    }
+    if (answer) {
+      output.push(`A${Math.max(questionNumber, 1)}) ${cleanText(answer[1])}`);
+      return;
+    }
+    if (output.length) {
+      output[output.length - 1] = cleanText(`${output[output.length - 1]} ${line}`);
+    } else {
+      output.push(line);
+    }
+  });
+
+  return output.join("\n").trim();
+}
+
+function slackHistoryLines(source: string) {
+  return formatEmploymentHistory(source)
+    .split("\n")
+    .map((line) => cleanText(line))
+    .filter(Boolean);
+}
+
+function slackAvailability(record: SlackExpertRecord) {
+  const lines = formatAvailability(record.availability)
+    .split("\n")
+    .map((line) => cleanText(line))
+    .filter(Boolean);
+  const timeZone = lines.find((line) => /^Time Zone\s*:/i.test(line)) ?? "";
+  return {
+    heading: timeZone ? `Availability: ${timeZone}` : "Availability",
+    slots: lines.filter((line) => line !== timeZone),
+  };
+}
+
+function parseSlackExperts(raw: string) {
+  return splitExpertBlocks(raw)
+    .map((block, index) => {
+      const record = parseExpert(block, index);
+      if (!record) return null;
+      return {
+        ...record,
+        location: extractExpertLocation(block),
+        screeningLabel: extractScreeningLabel(block),
+      };
+    })
+    .filter((record): record is SlackExpertRecord => Boolean(record));
+}
+
+function formatSlackExpert(record: SlackExpertRecord) {
+  const parts: string[] = [];
+  parts.push(`*${record.number} - ${record.name} - ✅${record.title}*`);
+
+  if (record.introduction) parts.push(record.introduction);
+
+  const screening = formatSlackScreening(record.screening);
+  if (screening) {
+    parts.push(`\`\`\`\n${record.screeningLabel}\n\n${screening}\n\`\`\``);
+  }
+
+  const history = slackHistoryLines(record.employmentHistory);
+  if (history.length) {
+    parts.push(`*Employment History*\n\n${history.map((line) => `• ${line}`).join("\n")}`);
+  }
+
+  const availability = slackAvailability(record);
+  if (availability.slots.length) {
+    parts.push(
+      `*${availability.heading}*\n\n${availability.slots
+        .map((slot) => `• \`${slot}\``)
+        .join("\n")}`,
+    );
+  }
+
+  if (record.location) {
+    parts.push(`This specialist is based in ${record.location}.`);
+  }
+  if (record.fee) parts.push(`*${record.fee}*`);
+  return parts.join("\n\n");
+}
+
+const slackTranslations = {
+  en: {
+    title: "Slack Expert Formatter",
+    version: "v1.0",
+    subtitle: "Turn multiple expert profiles into clean, copy-ready Slack posts.",
+    privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
+    inputTitle: "1. Paste expert profiles",
+    inputHelp: "Paste one or many profiles beginning with #1.1 - Name - …",
+    label: "Expert information",
+    placeholder: "Paste expert profiles here…",
+    generate: "Create Slack posts",
+    clear: "Clear all",
+    results: "2. Copy to Slack",
+    resultsHelp: "Each expert is formatted separately. Copy one post or all posts at once.",
+    empty: "Your Slack-ready expert posts will appear here.",
+    copy: "Copy for Slack",
+    copied: "Copied",
+    copyAll: "Copy all experts",
+    copiedAll: "All experts copied",
+    found: "experts formatted",
+    parseError: "No expert profile beginning with #1.1 - Name - … was found.",
+    employment: "Employment History",
+  },
+  ja: {
+    title: "Slack Expert Formatter",
+    version: "v1.0",
+    subtitle: "複数のエキスパート情報を、Slackに貼り付けやすい形式へ整えます。",
+    privacy: "入力内容はブラウザ内だけで処理され、アップロードや保存はされません。",
+    inputTitle: "1. エキスパート情報を貼り付け",
+    inputHelp: "#1.1 - Name - … で始まる情報を、複数名まとめて貼り付けられます。",
+    label: "エキスパート情報",
+    placeholder: "ここにエキスパート情報を貼り付けてください…",
+    generate: "Slack用に整形",
+    clear: "すべてクリア",
+    results: "2. Slackへコピー",
+    resultsHelp: "エキスパートごとに個別コピー、または全員をまとめてコピーできます。",
+    empty: "整形したSlack投稿がここに表示されます。",
+    copy: "Slack用にコピー",
+    copied: "コピーしました",
+    copyAll: "全員をコピー",
+    copiedAll: "全員をコピーしました",
+    found: "名を整形",
+    parseError: "#1.1 - Name - … で始まるエキスパート情報が見つかりませんでした。",
+    employment: "Employment History",
+  },
+  zh: {
+    title: "Slack Expert Formatter",
+    version: "v1.0",
+    subtitle: "将多位专家信息整理成可直接复制到 Slack 的格式。",
+    privacy: "所有内容只在浏览器中处理，不会上传或保存。",
+    inputTitle: "1. 粘贴专家信息",
+    inputHelp: "可以一次粘贴多位以 #1.1 - Name - … 开头的专家信息。",
+    label: "专家信息",
+    placeholder: "在这里粘贴专家信息…",
+    generate: "生成 Slack 内容",
+    clear: "全部清除",
+    results: "2. 复制到 Slack",
+    resultsHelp: "每位专家独立生成，可以单独复制，也可以一次复制全部。",
+    empty: "生成后的 Slack 内容会显示在这里。",
+    copy: "复制到 Slack",
+    copied: "已复制",
+    copyAll: "复制全部专家",
+    copiedAll: "已复制全部专家",
+    found: "位专家已生成",
+    parseError: "没有找到以 #1.1 - Name - … 开头的专家信息。",
+    employment: "Employment History",
+  },
+} as const;
+
 function findExistingMatch(
   latest: ExpertRecord,
   existing: ExpertRecord[],
@@ -1363,6 +1551,17 @@ function ToolSwitcher({
         </span>
       </button>
       <button
+        className={active === "slack" ? "is-active" : ""}
+        type="button"
+        onClick={() => onSelect("slack")}
+      >
+        <span className="tool-switcher-icon slack">SL</span>
+        <span>
+          <strong>Slack Formatter</strong>
+          <small>Copy-ready expert posts</small>
+        </span>
+      </button>
+      <button
         className={active === "navi" ? "is-active" : ""}
         type="button"
         onClick={() => onSelect("navi")}
@@ -1378,6 +1577,7 @@ function ToolSwitcher({
 }
 
 function ExpertPasswordGate({
+  active,
   theme,
   password,
   error,
@@ -1387,6 +1587,7 @@ function ExpertPasswordGate({
   onToggleTheme,
   onSelectTool,
 }: {
+  active: Exclude<ToolView, "navi">;
   theme: "light" | "dark";
   password: string;
   error: string;
@@ -1405,10 +1606,10 @@ function ExpertPasswordGate({
           <div>
             <div className="eyebrow">TAYA TOOL</div>
             <h1>
-              Expert Excel <span>Testing access</span>
+              Expert Tools <span>Testing access</span>
             </h1>
             <p className="subtitle">
-              Expert Excel is currently limited to approved testers.
+              Expert Excel and Slack Formatter are currently limited to approved testers.
             </p>
           </div>
           <div className="controls">
@@ -1423,7 +1624,7 @@ function ExpertPasswordGate({
           </div>
         </header>
 
-        <ToolSwitcher active="excel" onSelect={onSelectTool} />
+        <ToolSwitcher active={active} onSelect={onSelectTool} />
 
         <section className="access-card">
           <div className="access-lock" aria-hidden="true">
@@ -1458,11 +1659,11 @@ function ExpertPasswordGate({
               type="submit"
               disabled={checking || !password}
             >
-              {checking ? "Checking…" : "Enter Expert Excel"}
+              {checking ? "Checking…" : "Enter Expert Tools"}
             </button>
           </form>
           <p className="access-note">
-            Excel data is processed only in this browser. Nothing is uploaded or stored on a server.
+            Expert data is processed only in this browser. Nothing is uploaded or stored on a server.
           </p>
         </section>
 
@@ -1795,6 +1996,239 @@ function TayaNaviPanel({
         </section>
 
         <footer>Taya Tool · LinkedIn search & Expert Excel</footer>
+      </div>
+    </main>
+  );
+}
+
+function SlackFormatterPanel({
+  theme,
+  language,
+  onToggleTheme,
+  onLanguageChange,
+  onSelectTool,
+  onLock,
+}: {
+  theme: "light" | "dark";
+  language: NaviLanguage;
+  onToggleTheme: () => void;
+  onLanguageChange: (language: NaviLanguage) => void;
+  onSelectTool: (tool: ToolView) => void;
+  onLock: () => void;
+}) {
+  const uiLanguage: Language =
+    language === "ja"
+      ? "ja"
+      : language === "zh_cn" || language === "zh_tw"
+        ? "zh"
+        : "en";
+  const t = slackTranslations[uiLanguage];
+  const [rawProfiles, setRawProfiles] = useState("");
+  const [experts, setExperts] = useState<SlackExpertRecord[]>([]);
+  const [notice, setNotice] = useState("");
+  const [noticeType, setNoticeType] = useState<"success" | "error" | "">("");
+  const [copiedId, setCopiedId] = useState("");
+
+  function generatePosts() {
+    const parsed = parseSlackExperts(rawProfiles);
+    if (!parsed.length) {
+      setExperts([]);
+      setNotice(t.parseError);
+      setNoticeType("error");
+      return;
+    }
+    setExperts(parsed);
+    setNotice(`${parsed.length} ${t.found}`);
+    setNoticeType("success");
+    window.setTimeout(() => {
+      document.getElementById("slack-results")?.scrollIntoView({ behavior: "smooth" });
+    }, 0);
+  }
+
+  function clearPosts() {
+    setRawProfiles("");
+    setExperts([]);
+    setNotice("");
+    setNoticeType("");
+    setCopiedId("");
+  }
+
+  async function copyExpert(expert: SlackExpertRecord) {
+    await navigator.clipboard.writeText(formatSlackExpert(expert));
+    setCopiedId(expert.id);
+    window.setTimeout(() => setCopiedId(""), 1800);
+  }
+
+  async function copyAllExperts() {
+    const combined = experts
+      .map((expert) => formatSlackExpert(expert))
+      .join("\n\n────────────────────\n\n");
+    await navigator.clipboard.writeText(combined);
+    setCopiedId("all");
+    window.setTimeout(() => setCopiedId(""), 1800);
+  }
+
+  return (
+    <main className="app-shell slack-shell">
+      <div className="container">
+        <header className="topbar">
+          <div>
+            <div className="eyebrow">TAYA TOOL</div>
+            <h1>
+              {t.title} <span>{t.version}</span>
+            </h1>
+            <p className="subtitle">{t.subtitle}</p>
+          </div>
+          <div className="controls">
+            <label className="sr-only" htmlFor="slack-language">
+              Language
+            </label>
+            <select
+              id="slack-language"
+              value={language}
+              onChange={(event) =>
+                onLanguageChange(event.target.value as NaviLanguage)
+              }
+            >
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+              <option value="zh_cn">中文（简体）</option>
+              <option value="zh_tw">中文（繁體）</option>
+              <option value="mn">Монгол</option>
+            </select>
+            <button
+              className="lock-toggle"
+              type="button"
+              onClick={onLock}
+              aria-label="Lock Expert Tools"
+              title="Lock Expert Tools"
+            >
+              🔒
+            </button>
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={onToggleTheme}
+              aria-label="Toggle theme"
+            >
+              {theme === "light" ? "🌙" : "☀️"}
+            </button>
+          </div>
+        </header>
+
+        <ToolSwitcher active="slack" onSelect={onSelectTool} />
+
+        <div className="privacy-note">
+          <span aria-hidden="true">🔒</span>
+          {t.privacy}
+        </div>
+
+        <section className="card">
+          <div className="section-heading">
+            <div>
+              <h2>{t.inputTitle}</h2>
+              <p>{t.inputHelp}</p>
+            </div>
+          </div>
+          <label className="field-label" htmlFor="slack-raw-experts">
+            {t.label}
+          </label>
+          <textarea
+            id="slack-raw-experts"
+            className="raw-input slack-raw-input"
+            value={rawProfiles}
+            onChange={(event) => setRawProfiles(event.target.value)}
+            placeholder={t.placeholder}
+            spellCheck={false}
+          />
+          <div className="button-row">
+            <button className="button button-primary" type="button" onClick={generatePosts}>
+              {t.generate}
+            </button>
+            <button className="button button-danger" type="button" onClick={clearPosts}>
+              {t.clear}
+            </button>
+          </div>
+          {notice && (
+            <div className={`message ${noticeType}`} role="status">
+              {notice}
+            </div>
+          )}
+        </section>
+
+        <section className="card slack-results" id="slack-results">
+          <div className="section-heading">
+            <div>
+              <h2>{t.results}</h2>
+              <p>{t.resultsHelp}</p>
+            </div>
+            {experts.length > 0 && (
+              <button className="button button-secondary" type="button" onClick={copyAllExperts}>
+                {copiedId === "all" ? t.copiedAll : t.copyAll}
+              </button>
+            )}
+          </div>
+
+          {!experts.length ? (
+            <div className="empty-state">{t.empty}</div>
+          ) : (
+            <div className="slack-expert-list">
+              {experts.map((expert) => {
+                const screening = formatSlackScreening(expert.screening);
+                const history = slackHistoryLines(expert.employmentHistory);
+                const availability = slackAvailability(expert);
+                return (
+                  <article className="slack-expert-card" key={expert.id}>
+                    <div className="slack-expert-toolbar">
+                      <div>
+                        <strong>{expert.number} · {expert.name}</strong>
+                        <small>{expert.company}</small>
+                      </div>
+                      <button
+                        className="button button-primary slack-copy-button"
+                        type="button"
+                        onClick={() => copyExpert(expert)}
+                      >
+                        {copiedId === expert.id ? t.copied : t.copy}
+                      </button>
+                    </div>
+                    <div className="slack-preview">
+                      <p className="slack-headline">
+                        <strong>{expert.number} - {expert.name} - ✅{expert.title}</strong>
+                      </p>
+                      {expert.introduction && <p>{expert.introduction}</p>}
+                      {screening && (
+                        <pre className="slack-code-block">{expert.screeningLabel}{"\n\n"}{screening}</pre>
+                      )}
+                      {history.length > 0 && (
+                        <div className="slack-history">
+                          <strong>{t.employment}</strong>
+                          <ul>
+                            {history.map((line, index) => <li key={`${expert.id}-history-${index}`}>{line}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {availability.slots.length > 0 && (
+                        <div className="slack-availability">
+                          <strong>{availability.heading}</strong>
+                          <ul>
+                            {availability.slots.map((slot, index) => (
+                              <li key={`${expert.id}-slot-${index}`}><code>{slot}</code></li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {expert.location && <p>This specialist is based in {expert.location}.</p>}
+                      {expert.fee && <p className="slack-fee"><strong>{expert.fee}</strong></p>}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <footer>Taya Tool · Slack Formatter</footer>
       </div>
     </main>
   );
@@ -2741,6 +3175,7 @@ export default function Home() {
   if (!expertUnlocked) {
     return (
       <ExpertPasswordGate
+        active={activeTool}
         theme={theme}
         password={testerPassword}
         error={passwordError}
@@ -2752,6 +3187,19 @@ export default function Home() {
         onSubmit={unlockExpert}
         onToggleTheme={changeTheme}
         onSelectTool={setActiveTool}
+      />
+    );
+  }
+
+  if (activeTool === "slack") {
+    return (
+      <SlackFormatterPanel
+        theme={theme}
+        language={language}
+        onToggleTheme={changeTheme}
+        onLanguageChange={changeLanguage}
+        onSelectTool={setActiveTool}
+        onLock={lockExpert}
       />
     );
   }
