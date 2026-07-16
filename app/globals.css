@@ -144,7 +144,8 @@ textarea:focus {
   border-radius: 9px;
 }
 
-.theme-toggle {
+.theme-toggle,
+.lock-toggle {
   width: 38px;
   height: 38px;
   padding: 0;
@@ -153,6 +154,147 @@ textarea:focus {
   color: var(--text);
   background: var(--card);
   cursor: pointer;
+}
+
+.access-container {
+  max-width: 880px;
+}
+
+.access-card {
+  width: min(520px, 100%);
+  margin: 34px auto 24px;
+  padding: 34px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: 0 24px 70px rgba(19, 40, 56, 0.12);
+  text-align: center;
+}
+
+.access-lock {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  margin: 0 auto 16px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, var(--blue), var(--blue-dark));
+  box-shadow: 0 12px 26px rgba(37, 99, 235, 0.22);
+}
+
+.access-lock::before {
+  position: absolute;
+  top: 15px;
+  left: 23px;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #ffffff;
+  border-bottom: 0;
+  border-radius: 11px 11px 0 0;
+  content: "";
+}
+
+.access-lock span {
+  position: absolute;
+  top: 31px;
+  left: 18px;
+  width: 30px;
+  height: 23px;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.access-lock span::after {
+  position: absolute;
+  top: 7px;
+  left: 13px;
+  width: 5px;
+  height: 9px;
+  border-radius: 99px;
+  background: var(--blue-dark);
+  content: "";
+}
+
+.testing-badge {
+  display: inline-flex;
+  margin-bottom: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: var(--blue-dark);
+  background: rgba(59, 130, 246, 0.1);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.15em;
+}
+
+.access-card h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+
+.access-lead {
+  margin: 7px 0 22px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.access-form {
+  text-align: left;
+}
+
+.access-form > label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  width: 100%;
+  height: 46px;
+  padding: 10px 64px 10px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+
+.password-field button {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  padding: 3px;
+  border: 0;
+  color: var(--blue-dark);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.access-error {
+  margin-top: 8px;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.access-submit {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 13px;
+}
+
+.access-note {
+  margin: 18px 0 0;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
 }
 
 .tool-switcher {
@@ -1496,6 +1638,11 @@ footer {
 @media (max-width: 500px) {
   .card {
     padding: 17px;
+  }
+
+  .access-card {
+    margin-top: 22px;
+    padding: 25px 18px;
   }
 
   .raw-input {

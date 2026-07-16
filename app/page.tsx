@@ -87,6 +87,9 @@ const NAVI_SPLIT_REGEX = /[\r\n,，、。:：\/\\;；Ø|◊]+/g;
 const NAVI_MAX_GROUPS = 4;
 const NAVI_MAX_HISTORY = 10;
 const NAVI_HISTORY_KEY = "tayaHistory_v34";
+const EXPERT_ACCESS_KEY = "tayaExpertUnlockedV1";
+const EXPERT_PASSWORD_HASH =
+  "cfe0042d5ff7f0bba1453855ef82ab6074985b68f0a86e2ffbb4313ea52d33ef";
 
 const MONTHS =
   "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December";
@@ -96,7 +99,7 @@ const WEEKDAYS =
 const translations = {
   ja: {
     title: "Taya Expert List Builder",
-    version: "v1.3",
+    version: "v1.4",
     subtitle: "エキスパート情報を貼り付け、Excel リストをすぐに作成できます。",
     privacy: "入力内容はブラウザ内だけで処理され、サーバーへ送信・保存されません。",
     modeCreate: "新しいExcelを作成",
@@ -182,7 +185,7 @@ const translations = {
   },
   en: {
     title: "Taya Expert List Builder",
-    version: "v1.3",
+    version: "v1.4",
     subtitle: "Paste expert profiles and turn them into a client-ready Excel list.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     modeCreate: "Create a new Excel",
@@ -267,7 +270,7 @@ const translations = {
   },
   zh: {
     title: "Taya Expert List Builder",
-    version: "v1.3",
+    version: "v1.4",
     subtitle: "粘贴专家资料，一键整理并生成客户用 Excel 名单。",
     privacy: "所有内容仅在浏览器内处理，不会上传或保存到服务器。",
     modeCreate: "创建新的Excel",
@@ -1057,6 +1060,14 @@ function createNaviGroup(value = "") {
   };
 }
 
+async function hashPassword(value: string) {
+  const data = new TextEncoder().encode(value);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function ToolSwitcher({
   active,
   onSelect,
@@ -1089,6 +1100,101 @@ function ToolSwitcher({
         </span>
       </button>
     </nav>
+  );
+}
+
+function ExpertPasswordGate({
+  theme,
+  password,
+  error,
+  checking,
+  onPasswordChange,
+  onSubmit,
+  onToggleTheme,
+  onSelectTool,
+}: {
+  theme: "light" | "dark";
+  password: string;
+  error: string;
+  checking: boolean;
+  onPasswordChange: (value: string) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onToggleTheme: () => void;
+  onSelectTool: (tool: ToolView) => void;
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <main className="app-shell access-shell">
+      <div className="container access-container">
+        <header className="topbar">
+          <div>
+            <div className="eyebrow">TAYA TOOL</div>
+            <h1>
+              Expert Excel <span>Testing access</span>
+            </h1>
+            <p className="subtitle">
+              Expert Excel is currently limited to approved testers.
+            </p>
+          </div>
+          <div className="controls">
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={onToggleTheme}
+              aria-label="Toggle theme"
+            >
+              {theme === "light" ? "🌙" : "☀️"}
+            </button>
+          </div>
+        </header>
+
+        <ToolSwitcher active="excel" onSelect={onSelectTool} />
+
+        <section className="access-card">
+          <div className="access-lock" aria-hidden="true">
+            <span />
+          </div>
+          <div className="testing-badge">TESTING</div>
+          <h2>正在测试中</h2>
+          <p className="access-lead">请输入测试员密码</p>
+          <form className="access-form" onSubmit={onSubmit}>
+            <label htmlFor="tester-password">测试员密码</label>
+            <div className="password-field">
+              <input
+                id="tester-password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => onPasswordChange(event.target.value)}
+                placeholder="请输入密码"
+                autoComplete="current-password"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-label={showPassword ? "隐藏密码" : "显示密码"}
+              >
+                {showPassword ? "隐藏" : "显示"}
+              </button>
+            </div>
+            {error && <div className="access-error" role="alert">{error}</div>}
+            <button
+              className="button button-primary access-submit"
+              type="submit"
+              disabled={checking || !password}
+            >
+              {checking ? "正在验证……" : "进入 Expert Excel"}
+            </button>
+          </form>
+          <p className="access-note">
+            Excel 内容仍然只在当前浏览器中处理，不会上传或保存到服务器。
+          </p>
+        </section>
+
+        <footer>Taya Tool · Tester access</footer>
+      </div>
+    </main>
   );
 }
 
@@ -1417,6 +1523,10 @@ function TayaNaviPanel({
 
 export default function Home() {
   const [activeTool, setActiveTool] = useState<ToolView>("excel");
+  const [expertUnlocked, setExpertUnlocked] = useState(false);
+  const [testerPassword, setTesterPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [checkingPassword, setCheckingPassword] = useState(false);
   const [language, setLanguage] = useState<Language>("ja");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("create");
@@ -1441,6 +1551,12 @@ export default function Home() {
   const [exporting, setExporting] = useState(false);
   const t = translations[language];
 
+  useEffect(() => {
+    const unlocked = window.sessionStorage.getItem(EXPERT_ACCESS_KEY) === "unlocked";
+    const timer = window.setTimeout(() => setExpertUnlocked(unlocked), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const warningCount = useMemo(
     () => records.reduce((total, record) => total + record.warnings.length, 0),
     [records],
@@ -1459,6 +1575,33 @@ export default function Home() {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
     document.documentElement.dataset.theme = next;
+  }
+
+  async function unlockExpert(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCheckingPassword(true);
+    setPasswordError("");
+    try {
+      const passwordHash = await hashPassword(testerPassword);
+      if (passwordHash !== EXPERT_PASSWORD_HASH) {
+        setPasswordError("密码不正确，请重新输入。");
+        return;
+      }
+      window.sessionStorage.setItem(EXPERT_ACCESS_KEY, "unlocked");
+      setExpertUnlocked(true);
+      setTesterPassword("");
+    } catch {
+      setPasswordError("暂时无法验证密码，请刷新页面后重试。");
+    } finally {
+      setCheckingPassword(false);
+    }
+  }
+
+  function lockExpert() {
+    window.sessionStorage.removeItem(EXPERT_ACCESS_KEY);
+    setExpertUnlocked(false);
+    setTesterPassword("");
+    setPasswordError("");
   }
 
   function switchWorkflowMode(nextMode: WorkflowMode) {
@@ -1933,6 +2076,24 @@ export default function Home() {
     );
   }
 
+  if (!expertUnlocked) {
+    return (
+      <ExpertPasswordGate
+        theme={theme}
+        password={testerPassword}
+        error={passwordError}
+        checking={checkingPassword}
+        onPasswordChange={(value) => {
+          setTesterPassword(value);
+          if (passwordError) setPasswordError("");
+        }}
+        onSubmit={unlockExpert}
+        onToggleTheme={changeTheme}
+        onSelectTool={setActiveTool}
+      />
+    );
+  }
+
   const longFields: Array<keyof Pick<
     ExpertRecord,
     | "relevantExperience"
@@ -1972,6 +2133,15 @@ export default function Home() {
               <option value="en">English</option>
               <option value="zh">中文</option>
             </select>
+            <button
+              className="lock-toggle"
+              type="button"
+              onClick={lockExpert}
+              aria-label="Lock Expert Excel"
+              title="Lock Expert Excel"
+            >
+              🔒
+            </button>
             <button className="theme-toggle" type="button" onClick={changeTheme} aria-label="Toggle theme">
               {theme === "light" ? "🌙" : "☀️"}
             </button>
