@@ -1156,7 +1156,7 @@ function ExpertPasswordGate({
             <span />
           </div>
           <div className="testing-badge">TESTING</div>
-          <h2>正在测试中</h2>
+          <h2>Testing in Progress</h2>
           <p className="access-lead">请输入测试员密码</p>
           <form className="access-form" onSubmit={onSubmit}>
             <label htmlFor="tester-password">测试员密码</label>
