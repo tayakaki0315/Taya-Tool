@@ -1,10 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Language = "ja" | "en" | "zh";
 type SheetMode = "single" | "perExpert" | "custom";
 type WorkflowMode = "create" | "update";
+type ToolView = "excel" | "navi";
+type NaviLanguage = "en" | "ja" | "zh_cn" | "zh_tw" | "mn";
+type NaviMode = "PAST" | "CURRENT" | "BOTH";
+
+type NaviHistoryItem = {
+  companies: string;
+  mode: NaviMode;
+  keywords: string[];
+  url: string;
+  time: string;
+};
 
 type ExpertRecord = {
   id: string;
@@ -72,6 +83,10 @@ const EXCEL_HEADERS = [
 
 const TAYA_META_SHEET = "_TAYA_META";
 const TAYA_META_MARKER = "TAYA_TOOL_EXPERT_LIST";
+const NAVI_SPLIT_REGEX = /[\r\n,，、。:：\/\\;；Ø|◊]+/g;
+const NAVI_MAX_GROUPS = 4;
+const NAVI_MAX_HISTORY = 10;
+const NAVI_HISTORY_KEY = "tayaHistory_v34";
 
 const MONTHS =
   "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December";
@@ -332,6 +347,174 @@ const translations = {
       availability: "可访谈日期与时间",
       sheetName: "输出Sheet名称",
     },
+  },
+} as const;
+
+const naviTranslations = {
+  en: {
+    title: "LinkedIn Search Builder",
+    version: "Taya Navi v1.2",
+    subtitle: "Build a LinkedIn Sales Navigator search URL from company and keyword groups.",
+    privacy: "Everything is processed in your browser. Search history stays on this device.",
+    company: "Company names",
+    companyPlaceholder: "Enter one company per line, or separate with commas…",
+    mode: "Company filter",
+    past: "Former only (exclude current)",
+    current: "Current only",
+    both: "Current + former",
+    keyword: "Keyword group",
+    keywordPlaceholder: "Enter alternative keywords for this OR group…",
+    remove: "Remove",
+    add: "Add keyword group (AND)",
+    generate: "Generate search",
+    open: "Open LinkedIn",
+    copy: "Copy URL",
+    copied: "Copied",
+    clear: "Clear all",
+    expandedCompanies: "Expanded companies",
+    expandedKeywords: "Expanded keywords",
+    generatedUrl: "Generated URL",
+    noUrl: "Generate a search to see the URL here.",
+    history: "Recent searches",
+    noHistory: "Your recent searches will appear here.",
+    load: "Load",
+    delete: "Delete",
+    clearHistory: "Clear history",
+    confirmClear: "Clear all inputs?",
+    confirmHistory: "Clear all search history?",
+    companyRequired: "Enter at least one company name.",
+  },
+  ja: {
+    title: "LinkedIn 検索ビルダー",
+    version: "Taya Navi v1.2",
+    subtitle: "会社名とキーワードグループから、LinkedIn Sales Navigator の検索URLを作成します。",
+    privacy: "すべてブラウザ内で処理され、検索履歴はこの端末だけに保存されます。",
+    company: "会社名",
+    companyPlaceholder: "1行に1社、またはカンマ区切りで入力してください…",
+    mode: "会社フィルター",
+    past: "元職のみ（現職を除外）",
+    current: "現職のみ",
+    both: "現職＋元職",
+    keyword: "キーワードグループ",
+    keywordPlaceholder: "同じORグループにするキーワードを入力してください…",
+    remove: "削除",
+    add: "キーワードグループ追加（AND）",
+    generate: "検索URLを生成",
+    open: "LinkedInを開く",
+    copy: "URLをコピー",
+    copied: "コピーしました",
+    clear: "すべてクリア",
+    expandedCompanies: "展開された会社名",
+    expandedKeywords: "展開されたキーワード",
+    generatedUrl: "生成されたURL",
+    noUrl: "検索URLを生成すると、ここに表示されます。",
+    history: "最近の検索",
+    noHistory: "最近の検索がここに表示されます。",
+    load: "読込",
+    delete: "削除",
+    clearHistory: "履歴を削除",
+    confirmClear: "入力内容をすべてクリアしますか？",
+    confirmHistory: "検索履歴をすべて削除しますか？",
+    companyRequired: "会社名を1社以上入力してください。",
+  },
+  zh_cn: {
+    title: "LinkedIn 搜索生成器",
+    version: "Taya Navi v1.2",
+    subtitle: "根据公司名称和关键词组，生成 LinkedIn Sales Navigator 搜索网址。",
+    privacy: "所有内容仅在浏览器内处理，搜索记录只保存在当前设备。",
+    company: "公司名称",
+    companyPlaceholder: "每行输入一家公司，也可以用逗号分隔……",
+    mode: "公司筛选方式",
+    past: "仅过去任职（排除现职）",
+    current: "仅现职",
+    both: "现职＋过去任职",
+    keyword: "关键词组",
+    keywordPlaceholder: "输入属于同一个 OR 组的关键词……",
+    remove: "删除",
+    add: "添加关键词组（AND）",
+    generate: "生成搜索网址",
+    open: "打开 LinkedIn",
+    copy: "复制网址",
+    copied: "已复制",
+    clear: "全部清空",
+    expandedCompanies: "展开后的公司",
+    expandedKeywords: "展开后的关键词",
+    generatedUrl: "生成的网址",
+    noUrl: "生成搜索后，网址会显示在这里。",
+    history: "最近搜索",
+    noHistory: "最近的搜索记录会显示在这里。",
+    load: "载入",
+    delete: "删除",
+    clearHistory: "清空记录",
+    confirmClear: "确定清空全部输入内容吗？",
+    confirmHistory: "确定清空全部搜索记录吗？",
+    companyRequired: "请至少输入一家公司。",
+  },
+  zh_tw: {
+    title: "LinkedIn 搜尋產生器",
+    version: "Taya Navi v1.2",
+    subtitle: "根據公司名稱和關鍵字群組，產生 LinkedIn Sales Navigator 搜尋網址。",
+    privacy: "所有內容僅在瀏覽器內處理，搜尋紀錄只保存在目前裝置。",
+    company: "公司名稱",
+    companyPlaceholder: "每行輸入一家公司，也可以用逗號分隔……",
+    mode: "公司篩選方式",
+    past: "僅過去任職（排除現職）",
+    current: "僅現職",
+    both: "現職＋過去任職",
+    keyword: "關鍵字群組",
+    keywordPlaceholder: "輸入屬於同一個 OR 群組的關鍵字……",
+    remove: "刪除",
+    add: "新增關鍵字群組（AND）",
+    generate: "產生搜尋網址",
+    open: "開啟 LinkedIn",
+    copy: "複製網址",
+    copied: "已複製",
+    clear: "全部清除",
+    expandedCompanies: "展開後的公司",
+    expandedKeywords: "展開後的關鍵字",
+    generatedUrl: "產生的網址",
+    noUrl: "產生搜尋後，網址會顯示在這裡。",
+    history: "最近搜尋",
+    noHistory: "最近的搜尋紀錄會顯示在這裡。",
+    load: "載入",
+    delete: "刪除",
+    clearHistory: "清除紀錄",
+    confirmClear: "確定清除全部輸入內容嗎？",
+    confirmHistory: "確定清除全部搜尋紀錄嗎？",
+    companyRequired: "請至少輸入一家公司。",
+  },
+  mn: {
+    title: "LinkedIn хайлтын үүсгэгч",
+    version: "Taya Navi v1.2",
+    subtitle: "Компанийн нэр болон түлхүүр үгийн бүлгээс LinkedIn Sales Navigator хайлтын холбоос үүсгэнэ.",
+    privacy: "Бүх боловсруулалт хөтөч дээр хийгдэж, хайлтын түүх зөвхөн энэ төхөөрөмжид хадгалагдана.",
+    company: "Компанийн нэр",
+    companyPlaceholder: "Нэг мөрөнд нэг компани эсвэл таслалаар тусгаарлана уу…",
+    mode: "Компанийн шүүлтүүр",
+    past: "Зөвхөн өмнөх (одоогийн ажлыг хасна)",
+    current: "Зөвхөн одоогийн",
+    both: "Одоогийн + өмнөх",
+    keyword: "Түлхүүр үгийн бүлэг",
+    keywordPlaceholder: "Нэг OR бүлгийн түлхүүр үгсийг оруулна уу…",
+    remove: "Устгах",
+    add: "Түлхүүр үгийн бүлэг нэмэх (AND)",
+    generate: "Хайлт үүсгэх",
+    open: "LinkedIn нээх",
+    copy: "Холбоос хуулах",
+    copied: "Хуулсан",
+    clear: "Бүгдийг цэвэрлэх",
+    expandedCompanies: "Задалсан компаниуд",
+    expandedKeywords: "Задалсан түлхүүр үгс",
+    generatedUrl: "Үүсгэсэн холбоос",
+    noUrl: "Хайлт үүсгэсний дараа холбоос энд харагдана.",
+    history: "Сүүлийн хайлтууд",
+    noHistory: "Сүүлийн хайлтууд энд харагдана.",
+    load: "Ачаалах",
+    delete: "Устгах",
+    clearHistory: "Түүх цэвэрлэх",
+    confirmClear: "Бүх оруулгыг цэвэрлэх үү?",
+    confirmHistory: "Бүх хайлтын түүхийг цэвэрлэх үү?",
+    companyRequired: "Дор хаяж нэг компанийн нэр оруулна уу.",
   },
 } as const;
 
@@ -827,7 +1010,413 @@ function estimatedRowHeight(values: string[]) {
   return Math.min(300, Math.max(72, 60 + Math.ceil(longest / 150) * 15));
 }
 
+function naviUniq(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function encodeNaviKeyword(value: string) {
+  const once = encodeURIComponent(value)
+    .replace(/\(/g, "%28")
+    .replace(/\)/g, "%29");
+  return once.replace(/%/g, "%25");
+}
+
+function encodeNaviCompany(value: string) {
+  return encodeURIComponent(value).replace(/%/g, "%25");
+}
+
+function formatNaviKeywordGroup(value: string) {
+  const keywords = naviUniq((value || "").split(NAVI_SPLIT_REGEX));
+  return keywords
+    .map((keyword) => (/\p{Script=Han}/u.test(keyword) ? `“${keyword}”` : `"${keyword}"`))
+    .join(" OR ");
+}
+
+function buildNaviFilters(names: string[], mode: NaviMode) {
+  const values = (selectionType: "INCLUDED" | "EXCLUDED") =>
+    names
+      .map(
+        (name) =>
+          `(text%3A${encodeNaviCompany(name)}%2CselectionType%3A${selectionType})`,
+      )
+      .join("%2C");
+
+  if (mode === "PAST") {
+    return `(type%3APAST_COMPANY%2Cvalues%3AList(${values("INCLUDED")}))%2C(type%3ACURRENT_COMPANY%2Cvalues%3AList(${values("EXCLUDED")}))`;
+  }
+  if (mode === "CURRENT") {
+    return `(type%3ACURRENT_COMPANY%2Cvalues%3AList(${values("INCLUDED")}))`;
+  }
+  return `(type%3APAST_COMPANY%2Cvalues%3AList(${values("INCLUDED")}))%2C(type%3ACURRENT_COMPANY%2Cvalues%3AList(${values("INCLUDED")}))`;
+}
+
+function createNaviGroup(value = "") {
+  return {
+    id: `navi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    value,
+  };
+}
+
+function ToolSwitcher({
+  active,
+  onSelect,
+}: {
+  active: ToolView;
+  onSelect: (tool: ToolView) => void;
+}) {
+  return (
+    <nav className="tool-switcher" aria-label="Taya Tool applications">
+      <button
+        className={active === "excel" ? "is-active" : ""}
+        type="button"
+        onClick={() => onSelect("excel")}
+      >
+        <span className="tool-switcher-icon excel">XL</span>
+        <span>
+          <strong>Expert Excel</strong>
+          <small>Create & update lists</small>
+        </span>
+      </button>
+      <button
+        className={active === "navi" ? "is-active" : ""}
+        type="button"
+        onClick={() => onSelect("navi")}
+      >
+        <span className="tool-switcher-icon search">⌕</span>
+        <span>
+          <strong>LinkedIn Search</strong>
+          <small>Taya Navi</small>
+        </span>
+      </button>
+    </nav>
+  );
+}
+
+function TayaNaviPanel({
+  theme,
+  onToggleTheme,
+  onSelectTool,
+}: {
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
+  onSelectTool: (tool: ToolView) => void;
+}) {
+  const [language, setLanguage] = useState<NaviLanguage>("en");
+  const [companies, setCompanies] = useState("");
+  const [mode, setMode] = useState<NaviMode>("PAST");
+  const [keywordGroups, setKeywordGroups] = useState(() => [createNaviGroup()]);
+  const [generatedURL, setGeneratedURL] = useState("");
+  const [history, setHistory] = useState<NaviHistoryItem[]>([]);
+  const [notice, setNotice] = useState("");
+  const [noticeType, setNoticeType] = useState<"success" | "error" | "">("");
+  const t = naviTranslations[language];
+
+  useEffect(() => {
+    let saved: NaviHistoryItem[] = [];
+    try {
+      const parsed = JSON.parse(
+        window.localStorage.getItem(NAVI_HISTORY_KEY) || "[]",
+      ) as NaviHistoryItem[];
+      saved = Array.isArray(parsed) ? parsed.slice(0, NAVI_MAX_HISTORY) : [];
+    } catch {
+      saved = [];
+    }
+    const timer = window.setTimeout(() => setHistory(saved), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const expandedCompanies = useMemo(
+    () => naviUniq(companies.split(NAVI_SPLIT_REGEX)),
+    [companies],
+  );
+  const expandedKeywords = useMemo(
+    () =>
+      keywordGroups
+        .map((group) => formatNaviKeywordGroup(group.value))
+        .filter(Boolean)
+        .map((group) => `(${group})`)
+        .join(" AND "),
+    [keywordGroups],
+  );
+
+  function persistHistory(nextHistory: NaviHistoryItem[]) {
+    setHistory(nextHistory);
+    window.localStorage.setItem(NAVI_HISTORY_KEY, JSON.stringify(nextHistory));
+  }
+
+  function generateSearch() {
+    if (!expandedCompanies.length) {
+      setNotice(t.companyRequired);
+      setNoticeType("error");
+      return;
+    }
+    const filters = buildNaviFilters(expandedCompanies, mode);
+    const keywordBlock = expandedKeywords
+      ? `%2Ckeywords%3A${encodeNaviKeyword(expandedKeywords)}`
+      : "";
+    const query = `(spellCorrectionEnabled%3Atrue%2CrecentSearchParam%3A(doLogHistory%3Atrue)%2Cfilters%3AList(${filters})${keywordBlock})`;
+    const url = `https://www.linkedin.com/sales/search/people?query=${query}&viewAllFilters=true`;
+    const item: NaviHistoryItem = {
+      companies,
+      mode,
+      keywords: keywordGroups.map((group) => group.value),
+      url,
+      time: new Date().toLocaleString(),
+    };
+    setGeneratedURL(url);
+    persistHistory([item, ...history].slice(0, NAVI_MAX_HISTORY));
+    setNotice("");
+    setNoticeType("");
+  }
+
+  async function copySearchURL() {
+    if (!generatedURL) return;
+    await navigator.clipboard.writeText(generatedURL);
+    setNotice(t.copied);
+    setNoticeType("success");
+  }
+
+  function clearInputs() {
+    if (!window.confirm(t.confirmClear)) return;
+    setCompanies("");
+    setMode("PAST");
+    setKeywordGroups([createNaviGroup()]);
+    setGeneratedURL("");
+    setNotice("");
+    setNoticeType("");
+  }
+
+  function loadHistoryItem(item: NaviHistoryItem) {
+    setCompanies(item.companies || "");
+    setMode(item.mode || "PAST");
+    setKeywordGroups(
+      item.keywords?.length
+        ? item.keywords.slice(0, NAVI_MAX_GROUPS).map((value) => createNaviGroup(value))
+        : [createNaviGroup()],
+    );
+    setGeneratedURL(item.url || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function clearSearchHistory() {
+    if (!window.confirm(t.confirmHistory)) return;
+    window.localStorage.removeItem(NAVI_HISTORY_KEY);
+    setHistory([]);
+  }
+
+  return (
+    <main className="app-shell navi-shell">
+      <div className="container">
+        <header className="topbar">
+          <div>
+            <div className="eyebrow">TAYA TOOL</div>
+            <h1>
+              {t.title} <span>{t.version}</span>
+            </h1>
+            <p className="subtitle">{t.subtitle}</p>
+          </div>
+          <div className="controls">
+            <label className="sr-only" htmlFor="navi-language">
+              Language
+            </label>
+            <select
+              id="navi-language"
+              value={language}
+              onChange={(event) => setLanguage(event.target.value as NaviLanguage)}
+            >
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+              <option value="zh_cn">中文（简体）</option>
+              <option value="zh_tw">中文（繁體）</option>
+              <option value="mn">Монгол</option>
+            </select>
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={onToggleTheme}
+              aria-label="Toggle theme"
+            >
+              {theme === "light" ? "🌙" : "☀️"}
+            </button>
+          </div>
+        </header>
+
+        <ToolSwitcher active="navi" onSelect={onSelectTool} />
+
+        <div className="privacy-note">
+          <span aria-hidden="true">🔒</span>
+          {t.privacy}
+        </div>
+
+        <section className="card navi-builder-card">
+          <div className="navi-grid">
+            <label className="navi-field navi-companies">
+              <span>{t.company}</span>
+              <textarea
+                value={companies}
+                onChange={(event) => setCompanies(event.target.value)}
+                placeholder={t.companyPlaceholder}
+                spellCheck={false}
+              />
+            </label>
+
+            <label className="navi-field navi-mode">
+              <span>{t.mode}</span>
+              <select
+                value={mode}
+                onChange={(event) => setMode(event.target.value as NaviMode)}
+              >
+                <option value="PAST">{t.past}</option>
+                <option value="CURRENT">{t.current}</option>
+                <option value="BOTH">{t.both}</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="keyword-groups">
+            {keywordGroups.map((group, index) => (
+              <label className="navi-field keyword-group" key={group.id}>
+                <span>{t.keyword} {index + 1}</span>
+                {keywordGroups.length > 1 && (
+                  <button
+                    className="keyword-remove"
+                    type="button"
+                    onClick={() =>
+                      setKeywordGroups((current) =>
+                        current.filter((candidate) => candidate.id !== group.id),
+                      )
+                    }
+                  >
+                    {t.remove}
+                  </button>
+                )}
+                <textarea
+                  value={group.value}
+                  onChange={(event) =>
+                    setKeywordGroups((current) =>
+                      current.map((candidate) =>
+                        candidate.id === group.id
+                          ? { ...candidate, value: event.target.value }
+                          : candidate,
+                      ),
+                    )
+                  }
+                  placeholder={t.keywordPlaceholder}
+                  spellCheck={false}
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="navi-add-row">
+            <button
+              className="button button-muted"
+              type="button"
+              disabled={keywordGroups.length >= NAVI_MAX_GROUPS}
+              onClick={() =>
+                setKeywordGroups((current) => [...current, createNaviGroup()])
+              }
+            >
+              ＋ {t.add}
+            </button>
+            <span>{keywordGroups.length} / {NAVI_MAX_GROUPS}</span>
+          </div>
+
+          <div className="button-row navi-actions">
+            <button className="button button-primary" type="button" onClick={generateSearch}>
+              {t.generate}
+            </button>
+            <button
+              className="button button-secondary"
+              type="button"
+              disabled={!generatedURL}
+              onClick={() => window.open(generatedURL, "_blank", "noopener,noreferrer")}
+            >
+              {t.open}
+            </button>
+            <button
+              className="button button-muted"
+              type="button"
+              disabled={!generatedURL}
+              onClick={copySearchURL}
+            >
+              {t.copy}
+            </button>
+            <button className="button button-danger" type="button" onClick={clearInputs}>
+              {t.clear}
+            </button>
+          </div>
+
+          {notice && (
+            <div className={`message ${noticeType}`} role="status">
+              {notice}
+            </div>
+          )}
+        </section>
+
+        <section className="card navi-output-card">
+          <div className="navi-output-grid">
+            <div>
+              <h2>{t.expandedCompanies}</h2>
+              <pre>{expandedCompanies.join("\n") || "—"}</pre>
+            </div>
+            <div>
+              <h2>{t.expandedKeywords}</h2>
+              <pre>{expandedKeywords || "—"}</pre>
+            </div>
+          </div>
+          <div className="generated-url-block">
+            <h2>{t.generatedUrl}</h2>
+            <code>{generatedURL || t.noUrl}</code>
+          </div>
+        </section>
+
+        <section className="card navi-history-card">
+          <div className="section-heading">
+            <div>
+              <h2>{t.history}</h2>
+              {!history.length && <p>{t.noHistory}</p>}
+            </div>
+            {history.length > 0 && (
+              <button className="text-danger" type="button" onClick={clearSearchHistory}>
+                {t.clearHistory}
+              </button>
+            )}
+          </div>
+          <div className="navi-history-list">
+            {history.map((item, index) => (
+              <article className="navi-history-item" key={`${item.time}-${index}`}>
+                <div>
+                  <strong>{item.time}</strong>
+                  <p>{naviUniq((item.companies || "").split(NAVI_SPLIT_REGEX)).join(" · ")}</p>
+                </div>
+                <div className="history-actions">
+                  <button className="button button-muted" type="button" onClick={() => loadHistoryItem(item)}>
+                    {t.load}
+                  </button>
+                  <button
+                    className="text-danger"
+                    type="button"
+                    onClick={() =>
+                      persistHistory(history.filter((_, itemIndex) => itemIndex !== index))
+                    }
+                  >
+                    {t.delete}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <footer>Taya Tool · LinkedIn search & Expert Excel</footer>
+      </div>
+    </main>
+  );
+}
+
 export default function Home() {
+  const [activeTool, setActiveTool] = useState<ToolView>("excel");
   const [language, setLanguage] = useState<Language>("ja");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("create");
@@ -1334,6 +1923,16 @@ export default function Home() {
     }
   }
 
+  if (activeTool === "navi") {
+    return (
+      <TayaNaviPanel
+        theme={theme}
+        onToggleTheme={changeTheme}
+        onSelectTool={setActiveTool}
+      />
+    );
+  }
+
   const longFields: Array<keyof Pick<
     ExpertRecord,
     | "relevantExperience"
@@ -1378,6 +1977,8 @@ export default function Home() {
             </button>
           </div>
         </header>
+
+        <ToolSwitcher active="excel" onSelect={setActiveTool} />
 
         <div className="privacy-note">
           <span aria-hidden="true">🔒</span>
@@ -1713,7 +2314,7 @@ export default function Home() {
           </div>
         </section>
 
-        <footer>Taya Tool · Expert information to Excel</footer>
+        <footer>Taya Tool · LinkedIn search & Expert Excel</footer>
       </div>
 
       {sheetOrganizerOpen && sheetMode === "custom" && (

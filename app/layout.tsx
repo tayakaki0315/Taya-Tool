@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Taya Expert List Builder",
-  description: "Turn expert profiles into a formatted Excel list.",
+  title: "Taya Tool",
+  description:
+    "Taya's LinkedIn search builder and expert Excel list creation and update tools.",
   other: {
     "codex-preview": "development",
   },

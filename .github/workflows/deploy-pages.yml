@@ -1,4 +1,4 @@
-name: Deploy Taya Expert List to GitHub Pages
+name: Deploy Taya Tool to GitHub Pages
 
 on:
   push:

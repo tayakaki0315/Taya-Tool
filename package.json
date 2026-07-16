@@ -1,6 +1,6 @@
 {
-  "name": "taya-expert-list",
-  "version": "0.1.0",
+  "name": "taya-tool",
+  "version": "1.0.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -42,5 +42,5 @@
     "wrangler": "4.92.0"
   },
   "type": "module",
-  "displayName": "Taya Expert List Builder"
+  "displayName": "Taya Tool"
 }
