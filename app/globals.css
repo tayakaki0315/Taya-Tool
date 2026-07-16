@@ -1265,6 +1265,108 @@ textarea:focus {
   border-color: rgba(27, 183, 110, 0.25);
 }
 
+.update-summary-option {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--card-soft);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.update-summary-option.is-selected {
+  border-color: rgba(27, 183, 110, 0.42);
+  background: rgba(27, 183, 110, 0.06);
+}
+
+.update-summary-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  cursor: pointer;
+}
+
+.update-summary-toggle > input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--green);
+}
+
+.update-summary-toggle span {
+  display: grid;
+  gap: 3px;
+}
+
+.update-summary-toggle strong {
+  font-size: 12px;
+}
+
+.update-summary-toggle small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.update-summary-settings {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(280px, 1.2fr);
+  gap: 12px;
+  margin-top: 13px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border);
+}
+
+.update-summary-settings fieldset {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.update-summary-settings legend {
+  float: left;
+  margin-right: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.update-summary-settings label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.update-summary-settings input {
+  accent-color: var(--green);
+}
+
+.update-summary-confirmation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--green-dark);
+  background: rgba(27, 183, 110, 0.1);
+  font-size: 10px;
+}
+
+.update-summary-confirmation span {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .excel-mark {
   width: 42px;
   height: 42px;
@@ -1628,6 +1730,19 @@ footer {
 
   .export-controls {
     grid-template-columns: 1fr;
+  }
+
+  .update-summary-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .update-summary-settings fieldset {
+    flex-wrap: wrap;
+  }
+
+  .update-summary-confirmation {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .export-button {

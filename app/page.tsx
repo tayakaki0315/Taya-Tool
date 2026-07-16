@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 type Language = "ja" | "en" | "zh";
 type SheetMode = "single" | "perExpert" | "custom";
 type WorkflowMode = "create" | "update";
+type UpdateSummaryLanguage = "ja" | "en";
 type ToolView = "excel" | "navi";
 type NaviLanguage = "en" | "ja" | "zh_cn" | "zh_tw" | "mn";
 type NaviMode = "PAST" | "CURRENT" | "BOTH";
@@ -69,6 +70,27 @@ type ImportedWorkbookSummary = {
   sheetNames: string[];
 };
 
+type UpdateSummaryStatus =
+  | "new"
+  | "updated"
+  | "unchanged"
+  | "retained"
+  | "removed";
+
+type UpdateSummaryChange = {
+  field: DataField | "sheetName";
+  oldValue: string;
+  newValue: string;
+};
+
+type UpdateSummaryEntry = {
+  status: UpdateSummaryStatus;
+  number: string;
+  name: string;
+  company: string;
+  changes: UpdateSummaryChange[];
+};
+
 const EXCEL_HEADERS = [
   "番号",
   "名前",
@@ -99,7 +121,7 @@ const WEEKDAYS =
 const translations = {
   ja: {
     title: "Taya Expert List Builder",
-    version: "v1.4",
+    version: "v1.5",
     subtitle: "エキスパート情報を貼り付け、Excel リストをすぐに作成できます。",
     privacy: "入力内容はブラウザ内だけで処理され、サーバーへ送信・保存されません。",
     modeCreate: "新しいExcelを作成",
@@ -161,6 +183,10 @@ const translations = {
     exportTitle: "3. Excel を作成",
     exportHelp:
       "アップロードされたテンプレートの C–K 列構成を保ち、見やすい書式を加えて出力します。",
+    generateUpdateSummary: "Update Summaryを追加",
+    updateSummaryHelp: "最終的に採用した変更だけをまとめたSheetをExcelの先頭に追加します。",
+    updateSummaryLanguage: "Summary language",
+    updateSummaryReady: "Update SummaryをExcelに追加します",
     fileName: "ファイル名",
     export: "Excel をダウンロード",
     exporting: "Excel を作成中…",
@@ -185,7 +211,7 @@ const translations = {
   },
   en: {
     title: "Taya Expert List Builder",
-    version: "v1.4",
+    version: "v1.5",
     subtitle: "Paste expert profiles and turn them into a client-ready Excel list.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     modeCreate: "Create a new Excel",
@@ -247,6 +273,10 @@ const translations = {
     exportTitle: "3. Create Excel",
     exportHelp:
       "Uses the uploaded template’s C–K column structure with improved formatting and usability.",
+    generateUpdateSummary: "Add Update Summary",
+    updateSummaryHelp: "Adds a first sheet summarizing only the final changes you accepted.",
+    updateSummaryLanguage: "Summary language",
+    updateSummaryReady: "The Update Summary will be added to the Excel file",
     fileName: "File name",
     export: "Download Excel",
     exporting: "Creating Excel…",
@@ -270,7 +300,7 @@ const translations = {
   },
   zh: {
     title: "Taya Expert List Builder",
-    version: "v1.4",
+    version: "v1.5",
     subtitle: "粘贴专家资料，一键整理并生成客户用 Excel 名单。",
     privacy: "所有内容仅在浏览器内处理，不会上传或保存到服务器。",
     modeCreate: "创建新的Excel",
@@ -330,6 +360,10 @@ const translations = {
     done: "完成",
     exportTitle: "3. 生成 Excel",
     exportHelp: "保留上传模板的 C–K 列结构，并加入更易读的格式。",
+    generateUpdateSummary: "添加 Update Summary",
+    updateSummaryHelp: "在Excel的第一个Sheet中，仅汇总最终采用的变更。",
+    updateSummaryLanguage: "Summary语言",
+    updateSummaryReady: "Update Summary将加入Excel",
     fileName: "文件名",
     export: "下载 Excel",
     exporting: "正在生成 Excel……",
@@ -350,6 +384,81 @@ const translations = {
       availability: "可访谈日期与时间",
       sheetName: "输出Sheet名称",
     },
+  },
+} as const;
+
+const updateSummaryText = {
+  ja: {
+    sheetName: "更新サマリー",
+    title: "Update Summary",
+    generatedOn: "作成日",
+    sourceFile: "更新元ファイル",
+    status: "ステータス",
+    number: "番号",
+    name: "名前",
+    company: "企業",
+    updatedItems: "更新項目",
+    details: "変更内容",
+    statuses: {
+      new: "新規追加",
+      updated: "更新あり",
+      unchanged: "変更なし",
+      retained: "旧表より保持",
+      removed: "削除",
+    },
+    fields: {
+      number: "番号",
+      name: "名前",
+      company: "企業",
+      relevantExperience: "関連経歴",
+      employmentHistory: "過去の経歴",
+      introduction: "紹介",
+      screening: "スクリーニング回答",
+      fee: "金額",
+      availability: "Availability",
+      sheetName: "Sheet",
+    },
+    addedDetail: "エキスパートリストに新規追加",
+    unchangedDetail: "最終出力に変更なし",
+    retainedDetail: "最新情報には含まれず、旧表の内容を保持",
+    removedDetail: "最終出力から削除",
+    updatedDetail: "更新",
+  },
+  en: {
+    sheetName: "Update Summary",
+    title: "Update Summary",
+    generatedOn: "Generated on",
+    sourceFile: "Source file",
+    status: "Status",
+    number: "Number",
+    name: "Name",
+    company: "Company",
+    updatedItems: "Updated items",
+    details: "Change details",
+    statuses: {
+      new: "New expert",
+      updated: "Updated",
+      unchanged: "Unchanged",
+      retained: "Retained from old file",
+      removed: "Removed",
+    },
+    fields: {
+      number: "Number",
+      name: "Name",
+      company: "Company",
+      relevantExperience: "Relevant experience",
+      employmentHistory: "Employment history",
+      introduction: "Introduction",
+      screening: "Screening Q&A",
+      fee: "Fee",
+      availability: "Availability",
+      sheetName: "Sheet",
+    },
+    addedDetail: "Added to the expert list",
+    unchangedDetail: "No change in the final output",
+    retainedDetail: "Not included in the latest input; retained from the old file",
+    removedDetail: "Removed from the final output",
+    updatedDetail: "Updated",
   },
 } as const;
 
@@ -1024,6 +1133,127 @@ function estimatedRowHeight(values: string[]) {
   return Math.min(300, Math.max(72, 60 + Math.ceil(longest / 150) * 15));
 }
 
+function finalRecordChanges(
+  oldRecord: ExpertRecord,
+  finalRecord: ExpertRecord,
+): UpdateSummaryChange[] {
+  const fields = [...DATA_FIELDS, "sheetName"] as const;
+  return fields.flatMap((field) => {
+    const oldValue = oldRecord[field];
+    const newValue = finalRecord[field];
+    if (comparableText(oldValue) === comparableText(newValue)) return [];
+    return [{ field, oldValue, newValue }];
+  });
+}
+
+function buildUpdateSummaryEntries(
+  records: ExpertRecord[],
+  existingRecords: ExpertRecord[],
+  comparisonItems: ComparisonItem[],
+) {
+  const entries: UpdateSummaryEntry[] = [];
+  const finalById = new Map(records.map((record) => [record.id, record]));
+  const finalByStableId = new Map(
+    records.map((record) => [record.stableId, record]),
+  );
+  const existingById = new Map(
+    existingRecords.map((record) => [record.id, record]),
+  );
+  const matchedExistingIds = new Set<string>();
+
+  comparisonItems.forEach((item) => {
+    if (!item.existingId) {
+      const finalRecord =
+        finalById.get(item.latest.id) ??
+        finalByStableId.get(item.latest.stableId);
+      if (!finalRecord) return;
+      entries.push({
+        status: "new",
+        number: finalRecord.number,
+        name: finalRecord.name,
+        company: finalRecord.company,
+        changes: [],
+      });
+      return;
+    }
+
+    matchedExistingIds.add(item.existingId);
+    const oldRecord = existingById.get(item.existingId);
+    if (!oldRecord) return;
+    const finalRecord = finalById.get(item.existingId);
+    if (!finalRecord) {
+      entries.push({
+        status: "removed",
+        number: oldRecord.number,
+        name: oldRecord.name,
+        company: oldRecord.company,
+        changes: [],
+      });
+      return;
+    }
+
+    const changes = finalRecordChanges(oldRecord, finalRecord);
+    entries.push({
+      status: changes.length ? "updated" : "unchanged",
+      number: finalRecord.number,
+      name: finalRecord.name,
+      company: finalRecord.company,
+      changes,
+    });
+  });
+
+  existingRecords.forEach((oldRecord) => {
+    if (matchedExistingIds.has(oldRecord.id)) return;
+    const finalRecord = finalById.get(oldRecord.id);
+    if (!finalRecord) {
+      entries.push({
+        status: "removed",
+        number: oldRecord.number,
+        name: oldRecord.name,
+        company: oldRecord.company,
+        changes: [],
+      });
+      return;
+    }
+    const changes = finalRecordChanges(oldRecord, finalRecord);
+    entries.push({
+      status: changes.length ? "updated" : "retained",
+      number: finalRecord.number,
+      name: finalRecord.name,
+      company: finalRecord.company,
+      changes,
+    });
+  });
+
+  return entries;
+}
+
+function updateSummaryDetails(
+  entry: UpdateSummaryEntry,
+  language: UpdateSummaryLanguage,
+) {
+  const text = updateSummaryText[language];
+  if (entry.status === "new") return text.addedDetail;
+  if (entry.status === "unchanged") return text.unchangedDetail;
+  if (entry.status === "retained") return text.retainedDetail;
+  if (entry.status === "removed") return text.removedDetail;
+
+  const showValues = new Set<DataField | "sheetName">([
+    "number",
+    "name",
+    "company",
+    "fee",
+    "sheetName",
+  ]);
+  return entry.changes
+    .map((change) => {
+      const label = text.fields[change.field];
+      if (!showValues.has(change.field)) return `${label}: ${text.updatedDetail}`;
+      return `${label}: ${change.oldValue || "—"} → ${change.newValue || "—"}`;
+    })
+    .join("\n");
+}
+
 function naviUniq(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
@@ -1560,6 +1790,9 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error" | "">("");
   const [exporting, setExporting] = useState(false);
+  const [includeUpdateSummary, setIncludeUpdateSummary] = useState(false);
+  const [updateSummaryLanguage, setUpdateSummaryLanguage] =
+    useState<UpdateSummaryLanguage>("ja");
   const t = translations[language];
 
   useEffect(() => {
@@ -1580,6 +1813,24 @@ export default function Home() {
         { new: 0, changed: 0, unchanged: 0 },
       ),
     [comparisonItems],
+  );
+
+  const updateSummaryEntries = useMemo(
+    () =>
+      buildUpdateSummaryEntries(records, existingRecords, comparisonItems),
+    [records, existingRecords, comparisonItems],
+  );
+
+  const updateSummaryStats = useMemo(
+    () =>
+      updateSummaryEntries.reduce(
+        (stats, entry) => ({
+          ...stats,
+          [entry.status]: stats[entry.status] + 1,
+        }),
+        { new: 0, updated: 0, unchanged: 0, retained: 0, removed: 0 },
+      ),
+    [updateSummaryEntries],
   );
 
   function changeTheme() {
@@ -1626,6 +1877,8 @@ export default function Home() {
     setSheetMode("single");
     setSingleSheetName("Expert List");
     setCustomSheets(["Expert List"]);
+    setIncludeUpdateSummary(false);
+    setUpdateSummaryLanguage("ja");
     setFileName(nextMode === "update" ? "Expert_List_updated.xlsx" : "Expert_List.xlsx");
     setMessage("");
     setMessageType("");
@@ -1789,6 +2042,8 @@ export default function Home() {
     setCustomSheets(["Expert List"]);
     setNewSheetName("");
     setSheetOrganizerOpen(false);
+    setIncludeUpdateSummary(false);
+    setUpdateSummaryLanguage("ja");
     setMessage("");
     setMessageType("");
   }
@@ -1945,6 +2200,184 @@ export default function Home() {
       );
       const usedSheetNames = new Set<string>();
       const metaRows: string[][] = [];
+
+      if (
+        workflowMode === "update" &&
+        includeUpdateSummary &&
+        comparisonItems.length > 0
+      ) {
+        const summaryText = updateSummaryText[updateSummaryLanguage];
+        const summarySheetName = uniqueSheetName(
+          summaryText.sheetName,
+          usedSheetNames,
+        );
+        const summarySheet = workbook.addWorksheet(summarySheetName, {
+          views: [
+            {
+              state: "frozen",
+              ySplit: 7,
+              showGridLines: false,
+            },
+          ],
+        });
+
+        [16, 13, 25, 30, 42, 72].forEach((width, index) => {
+          summarySheet.getColumn(index + 1).width = width;
+        });
+
+        summarySheet.mergeCells("A1:F1");
+        const summaryTitle = summarySheet.getCell("A1");
+        summaryTitle.value = summaryText.title;
+        summaryTitle.font = {
+          name: "Yu Gothic",
+          size: 16,
+          bold: true,
+          color: { argb: "FFF1F5F9" },
+        };
+        summaryTitle.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF0B1E2D" },
+        };
+        summaryTitle.alignment = { vertical: "middle", horizontal: "left" };
+        summarySheet.getRow(1).height = 34;
+
+        summarySheet.mergeCells("A2:C2");
+        summarySheet.mergeCells("D2:F2");
+        summarySheet.getCell("A2").value = `${summaryText.generatedOn}: ${new Date().toLocaleDateString(updateSummaryLanguage === "ja" ? "ja-JP" : "en-GB")}`;
+        summarySheet.getCell("D2").value = `${summaryText.sourceFile}: ${importedWorkbook?.fileName ?? "—"}`;
+        [summarySheet.getCell("A2"), summarySheet.getCell("D2")].forEach(
+          (cell) => {
+            cell.font = { name: "Yu Gothic", size: 10, color: { argb: "FF536271" } };
+            cell.alignment = { vertical: "middle", horizontal: "left" };
+          },
+        );
+        summarySheet.getRow(2).height = 24;
+
+        const countCells = [
+          ["A4", summaryText.statuses.new, "B4", updateSummaryStats.new],
+          ["C4", summaryText.statuses.updated, "D4", updateSummaryStats.updated],
+          ["E4", summaryText.statuses.unchanged, "F4", updateSummaryStats.unchanged],
+          ["A5", summaryText.statuses.retained, "B5", updateSummaryStats.retained],
+          ["C5", summaryText.statuses.removed, "D5", updateSummaryStats.removed],
+        ] as const;
+        countCells.forEach(([labelCell, label, valueCell, value]) => {
+          summarySheet.getCell(labelCell).value = label;
+          summarySheet.getCell(valueCell).value = value;
+          summarySheet.getCell(labelCell).font = {
+            name: "Yu Gothic",
+            size: 10,
+            bold: true,
+            color: { argb: "FF536271" },
+          };
+          summarySheet.getCell(valueCell).font = {
+            name: "Yu Gothic",
+            size: 12,
+            bold: true,
+            color: { argb: "FF102A3A" },
+          };
+          summarySheet.getCell(labelCell).fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFF1F5F9" },
+          };
+          summarySheet.getCell(valueCell).fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFF1F5F9" },
+          };
+        });
+
+        const summaryHeaders = [
+          summaryText.status,
+          summaryText.number,
+          summaryText.name,
+          summaryText.company,
+          summaryText.updatedItems,
+          summaryText.details,
+        ];
+        summaryHeaders.forEach((header, index) => {
+          const cell = summarySheet.getCell(7, index + 1);
+          cell.value = header;
+          cell.font = {
+            name: "Yu Gothic",
+            size: 10,
+            bold: true,
+            color: { argb: "FF102A3A" },
+          };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFDBE9F7" },
+          };
+          cell.alignment = { vertical: "middle", horizontal: "left" };
+          cell.border = {
+            bottom: { style: "medium", color: { argb: "FF1F3A4D" } },
+          };
+        });
+        summarySheet.getRow(7).height = 30;
+
+        const statusFills: Record<UpdateSummaryStatus, string> = {
+          new: "FFDDF4E8",
+          updated: "FFFFE9C7",
+          unchanged: "FFEAF0F5",
+          retained: "FFEAF0F5",
+          removed: "FFFFE1E1",
+        };
+        updateSummaryEntries.forEach((entry, index) => {
+          const rowNumber = index + 8;
+          const values = [
+            summaryText.statuses[entry.status],
+            entry.number,
+            entry.name,
+            entry.company,
+            entry.changes
+              .map((change) => summaryText.fields[change.field])
+              .join(" / ") || "—",
+            updateSummaryDetails(entry, updateSummaryLanguage),
+          ];
+          values.forEach((value, valueIndex) => {
+            const cell = summarySheet.getCell(rowNumber, valueIndex + 1);
+            cell.value = value;
+            cell.font = {
+              name: "Yu Gothic",
+              size: 10,
+              bold: valueIndex === 0,
+              color: { argb: "FF17212B" },
+            };
+            cell.alignment = {
+              vertical: "top",
+              horizontal: "left",
+              wrapText: true,
+            };
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: {
+                argb:
+                  valueIndex === 0
+                    ? statusFills[entry.status]
+                    : index % 2 === 0
+                      ? "FFFFFFFF"
+                      : "FFF5F8FB",
+              },
+            };
+            cell.border = {
+              bottom: { style: "thin", color: { argb: "FFD0D9E2" } },
+            };
+          });
+          summarySheet.getRow(rowNumber).height = Math.min(
+            110,
+            Math.max(34, 24 + entry.changes.length * 14),
+          );
+        });
+        summarySheet.autoFilter = {
+          from: "A7",
+          to: `F${updateSummaryEntries.length + 7}`,
+        };
+        summarySheet.headerFooter.oddFooter =
+          "&LGenerated by Taya Tool&CPage &P / &N";
+      }
 
       sheetGroups.forEach((group) => {
       const sheetName = uniqueSheetName(group.name, usedSheetNames);
@@ -2479,6 +2912,61 @@ export default function Home() {
             </div>
             <div className="excel-mark" aria-hidden="true">X</div>
           </div>
+          {workflowMode === "update" && comparisonItems.length > 0 && (
+            <div
+              className={`update-summary-option ${includeUpdateSummary ? "is-selected" : ""}`}
+            >
+              <label className="update-summary-toggle">
+                <input
+                  type="checkbox"
+                  checked={includeUpdateSummary}
+                  onChange={(event) =>
+                    setIncludeUpdateSummary(event.target.checked)
+                  }
+                />
+                <span>
+                  <strong>{t.generateUpdateSummary}</strong>
+                  <small>{t.updateSummaryHelp}</small>
+                </span>
+              </label>
+
+              {includeUpdateSummary && (
+                <div className="update-summary-settings">
+                  <fieldset>
+                    <legend>{t.updateSummaryLanguage}</legend>
+                    <label>
+                      <input
+                        type="radio"
+                        name="update-summary-language"
+                        value="ja"
+                        checked={updateSummaryLanguage === "ja"}
+                        onChange={() => setUpdateSummaryLanguage("ja")}
+                      />
+                      日本語
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="update-summary-language"
+                        value="en"
+                        checked={updateSummaryLanguage === "en"}
+                        onChange={() => setUpdateSummaryLanguage("en")}
+                      />
+                      English
+                    </label>
+                  </fieldset>
+                  <div className="update-summary-confirmation" role="status">
+                    <strong>✓ {t.updateSummaryReady}</strong>
+                    <span>
+                      {updateSummaryText[updateSummaryLanguage].statuses.new}: {updateSummaryStats.new}
+                      {" · "}
+                      {updateSummaryText[updateSummaryLanguage].statuses.updated}: {updateSummaryStats.updated}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <div className="export-controls">
             <label>
               <span>{t.fileName}</span>
