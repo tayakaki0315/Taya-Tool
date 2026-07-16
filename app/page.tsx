@@ -1398,25 +1398,25 @@ function ExpertPasswordGate({
           </div>
           <div className="testing-badge">TESTING</div>
           <h2>Testing in Progress</h2>
-          <p className="access-lead">请输入测试员密码</p>
+          <p className="access-lead">Enter the tester password to continue.</p>
           <form className="access-form" onSubmit={onSubmit}>
-            <label htmlFor="tester-password">测试员密码</label>
+            <label htmlFor="tester-password">Tester password</label>
             <div className="password-field">
               <input
                 id="tester-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(event) => onPasswordChange(event.target.value)}
-                placeholder="请输入密码"
+                placeholder="Enter password"
                 autoComplete="current-password"
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? "隐藏" : "显示"}
+                {showPassword ? "Hide" : "Show"}
               </button>
             </div>
             {error && <div className="access-error" role="alert">{error}</div>}
@@ -1425,11 +1425,11 @@ function ExpertPasswordGate({
               type="submit"
               disabled={checking || !password}
             >
-              {checking ? "正在验证……" : "进入 Expert Excel"}
+              {checking ? "Checking…" : "Enter Expert Excel"}
             </button>
           </form>
           <p className="access-note">
-            Excel 内容仍然只在当前浏览器中处理，不会上传或保存到服务器。
+            Excel data is processed only in this browser. Nothing is uploaded or stored on a server.
           </p>
         </section>
 
@@ -1846,14 +1846,14 @@ export default function Home() {
     try {
       const passwordHash = await hashPassword(testerPassword);
       if (passwordHash !== EXPERT_PASSWORD_HASH) {
-        setPasswordError("密码不正确，请重新输入。");
+        setPasswordError("Incorrect password. Please try again.");
         return;
       }
       window.sessionStorage.setItem(EXPERT_ACCESS_KEY, "unlocked");
       setExpertUnlocked(true);
       setTesterPassword("");
     } catch {
-      setPasswordError("暂时无法验证密码，请刷新页面后重试。");
+      setPasswordError("Unable to verify the password. Refresh the page and try again.");
     } finally {
       setCheckingPassword(false);
     }
