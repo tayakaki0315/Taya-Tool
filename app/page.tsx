@@ -531,6 +531,15 @@ function cleanText(value: string) {
     .trim();
 }
 
+function removeAvailabilityPlaceholder(value: string) {
+  return cleanText(
+    value.replace(
+      /(?:This\s+(?:specialist|expert)\s+has\s+not(?:\s+yet)?\s+provided\s+(?:any\s+)?availability\.?|Request\s+Availability)/gi,
+      "",
+    ),
+  );
+}
+
 function createStableId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -661,21 +670,21 @@ function sectionAfter(
 }
 
 function formatEmploymentHistory(source: string) {
-  return cleanText(source).replace(
+  return removeAvailabilityPlaceholder(source).replace(
     new RegExp(`\\s+(?=(?:${MONTHS})\\s+\\d{4}\\s*-\\s*)`, "gi"),
     "\n",
   );
 }
 
 function formatAvailability(source: string) {
-  return cleanText(source)
+  return removeAvailabilityPlaceholder(source)
     .replace(/\s+(?=Time Zone\s*:)/gi, "\n")
     .replace(new RegExp(`\\s+(?=(?:${WEEKDAYS})\\s+)`, "gi"), "\n")
     .trim();
 }
 
 function formatScreening(source: string) {
-  return cleanText(source)
+  return removeAvailabilityPlaceholder(source)
     .replace(/\s+(?=(?:Q|A)(?:\d+)?\s*[).:\-])/gi, "\n")
     .replace(/\n{2,}/g, "\n")
     .trim();
@@ -779,7 +788,7 @@ function parseExpert(block: string, index: number): ExpertRecord | null {
     availabilityIndex,
     feeIndex,
   );
-  const introduction = cleanText(
+  const introduction = removeAvailabilityPlaceholder(
     profileEnd >= 0 ? content.slice(0, profileEnd) : content,
   );
   const company = parseCompany(headline);
@@ -801,6 +810,8 @@ function parseExpert(block: string, index: number): ExpertRecord | null {
   const employmentHistory = formatEmploymentHistory(
     sectionAfter(body, /Employment History\s*:/i, [
       /Availability\s*:/i,
+      /This\s+(?:specialist|expert)\s+has\s+not(?:\s+yet)?\s+provided\s+(?:any\s+)?availability/i,
+      /Request\s+Availability/i,
       /Book Now/i,
       /This specialist is based/i,
       /Hourly Fee\s*:/i,
@@ -1671,12 +1682,12 @@ export default function Home() {
             number: values[0],
             name: values[1],
             company: values[2],
-            relevantExperience: values[3],
-            employmentHistory: values[4],
-            introduction: values[5],
-            screening: values[6],
+            relevantExperience: removeAvailabilityPlaceholder(values[3]),
+            employmentHistory: removeAvailabilityPlaceholder(values[4]),
+            introduction: removeAvailabilityPlaceholder(values[5]),
+            screening: removeAvailabilityPlaceholder(values[6]),
             fee: values[7],
-            availability: values[8],
+            availability: removeAvailabilityPlaceholder(values[8]),
           };
           importedRecords.push({
             id: `import-${sheet.name}-${rowNumber}-${Date.now()}`,
