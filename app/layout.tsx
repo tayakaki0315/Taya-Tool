@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Taya Expert List Builder",
-  description: "Turn Third Bridge expert profiles into a formatted Excel list.",
+  description: "Turn expert profiles into a formatted Excel list.",
   other: {
     "codex-preview": "development",
   },
