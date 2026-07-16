@@ -24,6 +24,7 @@ type ExpertRecord = {
   number: string;
   name: string;
   company: string;
+  title: string;
   relevantExperience: string;
   employmentHistory: string;
   introduction: string;
@@ -38,6 +39,7 @@ const DATA_FIELDS = [
   "number",
   "name",
   "company",
+  "title",
   "relevantExperience",
   "employmentHistory",
   "introduction",
@@ -123,7 +125,7 @@ const WEEKDAYS =
 const translations = {
   ja: {
     title: "Taya Expert List Builder",
-    version: "v1.5",
+    version: "v1.6",
     subtitle: "エキスパート情報を貼り付け、Excel リストをすぐに作成できます。",
     privacy: "入力内容はブラウザ内だけで処理され、サーバーへ送信・保存されません。",
     modeCreate: "新しいExcelを作成",
@@ -184,9 +186,9 @@ const translations = {
     done: "完了",
     exportTitle: "3. Excel を作成",
     exportHelp:
-      "アップロードされたテンプレートの C–K 列構成を保ち、見やすい書式を加えて出力します。",
+      "Expert Summaryを自動で追加し、テンプレートの C–K 列構成を保って出力します。",
     generateUpdateSummary: "Update Summaryを追加",
-    updateSummaryHelp: "最終的に採用した変更だけをまとめたSheetをExcelの先頭に追加します。",
+    updateSummaryHelp: "最終的に採用した変更だけをまとめたSheetをExcelに追加します。",
     updateSummaryLanguage: "Summary language",
     updateSummaryReady: "Update SummaryをExcelに追加します",
     fileName: "ファイル名",
@@ -202,6 +204,7 @@ const translations = {
       number: "番号",
       name: "名前",
       company: "企業",
+      title: "Current Title",
       relevantExperience: "関連経歴",
       employmentHistory: "過去の経歴",
       introduction: "紹介",
@@ -213,7 +216,7 @@ const translations = {
   },
   en: {
     title: "Taya Expert List Builder",
-    version: "v1.5",
+    version: "v1.6",
     subtitle: "Paste expert profiles and turn them into a client-ready Excel list.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     modeCreate: "Create a new Excel",
@@ -274,9 +277,9 @@ const translations = {
     done: "Done",
     exportTitle: "3. Create Excel",
     exportHelp:
-      "Uses the uploaded template’s C–K column structure with improved formatting and usability.",
+      "Automatically adds an Expert Summary and keeps the template’s C–K column structure.",
     generateUpdateSummary: "Add Update Summary",
-    updateSummaryHelp: "Adds a first sheet summarizing only the final changes you accepted.",
+    updateSummaryHelp: "Adds a sheet summarizing only the final changes you accepted.",
     updateSummaryLanguage: "Summary language",
     updateSummaryReady: "The Update Summary will be added to the Excel file",
     fileName: "File name",
@@ -291,6 +294,7 @@ const translations = {
       number: "Number",
       name: "Name",
       company: "Company",
+      title: "Current Title",
       relevantExperience: "Relevant experience",
       employmentHistory: "Employment history",
       introduction: "Introduction",
@@ -302,7 +306,7 @@ const translations = {
   },
   zh: {
     title: "Taya Expert List Builder",
-    version: "v1.5",
+    version: "v1.6",
     subtitle: "粘贴专家资料，一键整理并生成客户用 Excel 名单。",
     privacy: "所有内容仅在浏览器内处理，不会上传或保存到服务器。",
     modeCreate: "创建新的Excel",
@@ -361,9 +365,9 @@ const translations = {
     deleteSheet: "删除空Sheet",
     done: "完成",
     exportTitle: "3. 生成 Excel",
-    exportHelp: "保留上传模板的 C–K 列结构，并加入更易读的格式。",
+    exportHelp: "自动添加 Expert Summary，并保留模板的 C–K 列结构。",
     generateUpdateSummary: "添加 Update Summary",
-    updateSummaryHelp: "在Excel的第一个Sheet中，仅汇总最终采用的变更。",
+    updateSummaryHelp: "在Excel中添加一个Sheet，仅汇总最终采用的变更。",
     updateSummaryLanguage: "Summary语言",
     updateSummaryReady: "Update Summary将加入Excel",
     fileName: "文件名",
@@ -378,6 +382,7 @@ const translations = {
       number: "编号",
       name: "姓名",
       company: "企业",
+      title: "Current Title",
       relevantExperience: "相关经历",
       employmentHistory: "全部工作经历",
       introduction: "专家介绍",
@@ -412,6 +417,7 @@ const updateSummaryText = {
       number: "番号",
       name: "名前",
       company: "企業",
+      title: "Current Title",
       relevantExperience: "関連経歴",
       employmentHistory: "過去の経歴",
       introduction: "紹介",
@@ -448,6 +454,7 @@ const updateSummaryText = {
       number: "Number",
       name: "Name",
       company: "Company",
+      title: "Current Title",
       relevantExperience: "Relevant experience",
       employmentHistory: "Employment history",
       introduction: "Introduction",
@@ -825,6 +832,18 @@ function parseCompany(headline: string) {
   return fallback ? cleanText(fallback[1]) : "";
 }
 
+function parseTitle(headline: string) {
+  const datedSuffix = new RegExp(
+    `\\s*\\((?:\\d{2}\\/\\d{4}|(?:${MONTHS})\\s+\\d{4})\\s*-\\s*(?:Present|\\d{2}\\/\\d{4}|(?:${MONTHS})\\s+\\d{4})\\)\\s*$`,
+    "i",
+  );
+  return cleanText(
+    headline
+      .replace(/^[^\p{L}\p{N}]+/u, "")
+      .replace(datedSuffix, ""),
+  );
+}
+
 function relatedHistory(employmentHistory: string, company: string) {
   if (!employmentHistory || !company) return "";
   const key = companyKey(company);
@@ -903,6 +922,7 @@ function parseExpert(block: string, index: number): ExpertRecord | null {
     profileEnd >= 0 ? content.slice(0, profileEnd) : content,
   );
   const company = parseCompany(headline);
+  const title = parseTitle(headline);
 
   let screening = "";
   if (screeningBoundary) {
@@ -956,6 +976,7 @@ function parseExpert(block: string, index: number): ExpertRecord | null {
     number,
     name,
     company,
+    title,
     relevantExperience,
     employmentHistory,
     introduction,
@@ -1244,6 +1265,7 @@ function updateSummaryDetails(
     "number",
     "name",
     "company",
+    "title",
     "fee",
     "sheetName",
   ]);
@@ -1925,6 +1947,7 @@ export default function Home() {
       const metaMarked =
         metaSheet && excelCellText(metaSheet.getCell("A1").value) === TAYA_META_MARKER;
       const metadataIds = new Map<string, string>();
+      const metadataTitles = new Map<string, string>();
       if (metaMarked && metaSheet) {
         for (let rowNumber = 3; rowNumber <= metaSheet.actualRowCount; rowNumber += 1) {
           const row = metaSheet.getRow(rowNumber);
@@ -1932,7 +1955,12 @@ export default function Home() {
           const sheetName = excelCellText(row.getCell(5).value);
           const excelRow = excelCellText(row.getCell(6).value);
           if (stableId && sheetName && excelRow) {
-            metadataIds.set(`${sheetName}::${excelRow}`, stableId);
+            const metadataKey = `${sheetName}::${excelRow}`;
+            metadataIds.set(metadataKey, stableId);
+            metadataTitles.set(
+              metadataKey,
+              excelCellText(row.getCell(7).value),
+            );
           }
         }
       }
@@ -1959,6 +1987,7 @@ export default function Home() {
             number: values[0],
             name: values[1],
             company: values[2],
+            title: metadataTitles.get(`${sheet.name}::${rowNumber}`) ?? "",
             relevantExperience: removeAvailabilityPlaceholder(values[3]),
             employmentHistory: removeAvailabilityPlaceholder(values[4]),
             introduction: removeAvailabilityPlaceholder(values[5]),
@@ -2224,6 +2253,90 @@ export default function Home() {
       );
       const usedSheetNames = new Set<string>();
       const metaRows: string[][] = [];
+      const resolvedSheetNames = new Map<string, string>();
+
+      const expertSummarySheetName = uniqueSheetName(
+        "Expert Summary",
+        usedSheetNames,
+      );
+      const expertSummarySheet = workbook.addWorksheet(
+        expertSummarySheetName,
+        {
+          views: [
+            {
+              state: "frozen",
+              ySplit: 4,
+              showGridLines: false,
+            },
+          ],
+        },
+      );
+      [14, 27, 36, 72, 31].forEach((width, index) => {
+        expertSummarySheet.getColumn(index + 1).width = width;
+      });
+
+      expertSummarySheet.mergeCells("A1:E1");
+      const expertSummaryTitle = expertSummarySheet.getCell("A1");
+      expertSummaryTitle.value = "Expert Summary";
+      expertSummaryTitle.font = {
+        name: "Yu Gothic",
+        size: 16,
+        bold: true,
+        color: { argb: "FFF1F5F9" },
+      };
+      expertSummaryTitle.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF0B1E2D" },
+      };
+      expertSummaryTitle.alignment = {
+        vertical: "middle",
+        horizontal: "left",
+      };
+      expertSummarySheet.getRow(1).height = 34;
+
+      expertSummarySheet.mergeCells("A2:B2");
+      expertSummarySheet.mergeCells("C2:E2");
+      expertSummarySheet.getCell("A2").value = `Generated on: ${new Date().toLocaleDateString("en-GB")}`;
+      expertSummarySheet.getCell("C2").value = `Experts: ${records.length}`;
+      [expertSummarySheet.getCell("A2"), expertSummarySheet.getCell("C2")].forEach(
+        (cell) => {
+          cell.font = {
+            name: "Yu Gothic",
+            size: 10,
+            color: { argb: "FF536271" },
+          };
+          cell.alignment = { vertical: "middle", horizontal: "left" };
+        },
+      );
+      expertSummarySheet.getRow(2).height = 24;
+
+      ["番号", "Expert Name", "Company", "Current Title", "Sheet"].forEach(
+        (header, index) => {
+          const cell = expertSummarySheet.getCell(4, index + 1);
+          cell.value = header;
+          cell.font = {
+            name: "Yu Gothic",
+            size: 10,
+            bold: true,
+            color: { argb: "FF102A3A" },
+          };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFDBE9F7" },
+          };
+          cell.alignment = {
+            vertical: "middle",
+            horizontal: "left",
+            wrapText: true,
+          };
+          cell.border = {
+            bottom: { style: "medium", color: { argb: "FF1F3A4D" } },
+          };
+        },
+      );
+      expertSummarySheet.getRow(4).height = 30;
 
       if (
         workflowMode === "update" &&
@@ -2461,6 +2574,7 @@ export default function Home() {
       sheet.getRow(2).height = 34;
 
       group.records.forEach((record, index) => {
+        resolvedSheetNames.set(record.id, sheetName);
         const rowNumber = index + 3;
         const values = [
           record.number,
@@ -2495,6 +2609,7 @@ export default function Home() {
           record.company,
           sheetName,
           String(rowNumber),
+          record.title,
         ]);
       });
 
@@ -2505,10 +2620,61 @@ export default function Home() {
       sheet.headerFooter.oddFooter = "&LGenerated by Taya Expert List Builder&CPage &P / &N";
       });
 
+      records.forEach((record, index) => {
+        const rowNumber = index + 5;
+        const values = [
+          record.number,
+          record.name,
+          record.company,
+          record.title,
+          resolvedSheetNames.get(record.id) ?? record.sheetName,
+        ];
+        values.forEach((value, valueIndex) => {
+          const cell = expertSummarySheet.getCell(rowNumber, valueIndex + 1);
+          cell.value = value;
+          cell.font = {
+            name: "Yu Gothic",
+            size: 10,
+            color: { argb: "FF17212B" },
+          };
+          cell.alignment = {
+            vertical: "top",
+            horizontal: "left",
+            wrapText: true,
+          };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: index % 2 === 0 ? "FFFFFFFF" : "FFF5F8FB" },
+          };
+          cell.border = {
+            bottom: { style: "thin", color: { argb: "FFD0D9E2" } },
+          };
+        });
+        expertSummarySheet.getRow(rowNumber).height = Math.min(
+          100,
+          Math.max(32, 24 + Math.ceil(record.title.length / 70) * 14),
+        );
+      });
+      expertSummarySheet.autoFilter = {
+        from: "A4",
+        to: `E${records.length + 4}`,
+      };
+      expertSummarySheet.headerFooter.oddFooter =
+        "&LGenerated by Taya Tool&CPage &P / &N";
+
       const metaSheet = workbook.addWorksheet(TAYA_META_SHEET);
       metaSheet.state = "veryHidden";
-      metaSheet.addRow([TAYA_META_MARKER, "1.3"]);
-      metaSheet.addRow(["Stable ID", "Number", "Name", "Company", "Sheet", "Row"]);
+      metaSheet.addRow([TAYA_META_MARKER, "1.4"]);
+      metaSheet.addRow([
+        "Stable ID",
+        "Number",
+        "Name",
+        "Company",
+        "Sheet",
+        "Row",
+        "Title",
+      ]);
       metaRows.forEach((row) => metaSheet.addRow(row));
 
       const buffer = await workbook.xlsx.writeBuffer();
@@ -2566,12 +2732,14 @@ export default function Home() {
 
   const longFields: Array<keyof Pick<
     ExpertRecord,
+    | "title"
     | "relevantExperience"
     | "employmentHistory"
     | "introduction"
     | "screening"
     | "availability"
   >> = [
+    "title",
     "relevantExperience",
     "employmentHistory",
     "introduction",
