@@ -1309,6 +1309,60 @@ textarea:focus {
   line-height: 1.55;
 }
 
+.expert-summary-example {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+}
+
+.expert-summary-example > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.expert-summary-example-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.expert-summary-example table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.expert-summary-example th,
+.expert-summary-example td {
+  padding: 7px 8px;
+  border-right: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.expert-summary-example th:last-child,
+.expert-summary-example td:last-child {
+  border-right: 0;
+}
+
+.expert-summary-example th {
+  color: var(--navy);
+  background: rgba(126, 164, 198, 0.18);
+  font-weight: 800;
+}
+
+.expert-summary-example td {
+  color: var(--muted);
+}
+
 .update-summary-settings {
   display: grid;
   grid-template-columns: minmax(260px, 0.8fr) minmax(280px, 1.2fr);
