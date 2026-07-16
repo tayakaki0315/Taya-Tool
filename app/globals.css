@@ -72,8 +72,17 @@ select {
 }
 
 .container {
-  width: min(1100px, 100%);
+  display: grid;
+  width: min(1360px, 100%);
   margin: 0 auto;
+  grid-template-columns: 214px minmax(0, 1fr);
+  column-gap: 24px;
+  align-items: start;
+}
+
+.container > :not(.tool-switcher) {
+  min-width: 0;
+  grid-column: 2;
 }
 
 .topbar {
@@ -298,11 +307,15 @@ textarea:focus {
 }
 
 .tool-switcher {
+  position: sticky;
+  top: 30px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-column: 1;
+  grid-row: 1 / span 100;
+  grid-template-columns: 1fr;
   gap: 9px;
-  margin-bottom: 18px;
-  padding: 5px;
+  margin: 0;
+  padding: 7px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--card);
@@ -376,6 +389,128 @@ textarea:focus {
 .tool-switcher-icon.search {
   background: var(--blue-dark);
   font-size: 21px;
+}
+
+.tool-switcher-icon.slack {
+  background: linear-gradient(145deg, #8b5cf6, #6d28d9);
+}
+
+.slack-raw-input {
+  min-height: 300px;
+}
+
+.slack-expert-list {
+  display: grid;
+  gap: 18px;
+}
+
+.slack-expert-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.slack-expert-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-soft);
+}
+
+.slack-expert-toolbar > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.slack-expert-toolbar strong,
+.slack-expert-toolbar small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slack-expert-toolbar strong {
+  font-size: 13px;
+}
+
+.slack-expert-toolbar small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.slack-copy-button {
+  flex: 0 0 auto;
+}
+
+.slack-preview {
+  padding: 19px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.slack-preview p {
+  margin: 0 0 14px;
+}
+
+.slack-headline {
+  font-size: 15px;
+}
+
+.slack-code-block {
+  overflow-x: auto;
+  margin: 16px 0;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--card-soft) 82%, var(--border));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.slack-history,
+.slack-availability {
+  margin: 16px 0;
+}
+
+.slack-history > strong,
+.slack-availability > strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.slack-history ul,
+.slack-availability ul {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.slack-history li,
+.slack-availability li {
+  margin: 4px 0;
+}
+
+.slack-availability code {
+  padding: 2px 5px;
+  border: 1px solid color-mix(in srgb, var(--red) 22%, var(--border));
+  border-radius: 4px;
+  color: #d7194f;
+  background: color-mix(in srgb, var(--red) 5%, var(--card));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.slack-fee {
+  margin-bottom: 0 !important;
 }
 
 .privacy-note {
@@ -1698,6 +1833,31 @@ footer {
     padding: 20px 14px;
   }
 
+  .container {
+    grid-template-columns: 70px minmax(0, 1fr);
+    column-gap: 12px;
+  }
+
+  .tool-switcher {
+    top: 20px;
+    gap: 7px;
+    padding: 6px;
+  }
+
+  .tool-switcher > button {
+    justify-content: center;
+    padding: 9px 6px;
+  }
+
+  .tool-switcher > button > span:last-child {
+    display: none;
+  }
+
+  .tool-switcher-icon {
+    width: 40px;
+    height: 40px;
+  }
+
   .topbar,
   .section-heading {
     flex-direction: column;
@@ -1805,6 +1965,15 @@ footer {
 }
 
 @media (max-width: 500px) {
+  .app-shell {
+    padding: 14px 9px;
+  }
+
+  .container {
+    grid-template-columns: 56px minmax(0, 1fr);
+    column-gap: 8px;
+  }
+
   .card {
     padding: 17px;
   }
@@ -1819,7 +1988,31 @@ footer {
   }
 
   .tool-switcher {
-    grid-template-columns: 1fr;
+    top: 14px;
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .tool-switcher > button {
+    padding: 7px 3px;
+  }
+
+  .tool-switcher-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .slack-expert-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .slack-copy-button {
+    width: 100%;
+  }
+
+  .slack-preview {
+    padding: 15px;
   }
 
   .navi-history-item {
