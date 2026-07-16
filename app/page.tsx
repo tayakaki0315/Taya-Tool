@@ -109,6 +109,8 @@ const NAVI_SPLIT_REGEX = /[\r\n,，、。:：\/\\;；Ø|◊]+/g;
 const NAVI_MAX_GROUPS = 4;
 const NAVI_MAX_HISTORY = 10;
 const NAVI_HISTORY_KEY = "tayaHistory_v34";
+const GLOBAL_LANGUAGE_KEY = "tayaGlobalLanguageV1";
+const GLOBAL_LANGUAGES: NaviLanguage[] = ["en", "ja", "zh_cn", "zh_tw", "mn"];
 const EXPERT_ACCESS_KEY = "tayaExpertUnlockedV1";
 const EXPERT_PASSWORD_HASH =
   "cfe0042d5ff7f0bba1453855ef82ab6074985b68f0a86e2ffbb4313ea52d33ef";
@@ -1441,14 +1443,17 @@ function ExpertPasswordGate({
 
 function TayaNaviPanel({
   theme,
+  language,
   onToggleTheme,
+  onLanguageChange,
   onSelectTool,
 }: {
   theme: "light" | "dark";
+  language: NaviLanguage;
   onToggleTheme: () => void;
+  onLanguageChange: (language: NaviLanguage) => void;
   onSelectTool: (tool: ToolView) => void;
 }) {
-  const [language, setLanguage] = useState<NaviLanguage>("en");
   const [companies, setCompanies] = useState("");
   const [mode, setMode] = useState<NaviMode>("PAST");
   const [keywordGroups, setKeywordGroups] = useState(() => [createNaviGroup()]);
@@ -1569,7 +1574,9 @@ function TayaNaviPanel({
             <select
               id="navi-language"
               value={language}
-              onChange={(event) => setLanguage(event.target.value as NaviLanguage)}
+              onChange={(event) =>
+                onLanguageChange(event.target.value as NaviLanguage)
+              }
             >
               <option value="en">English</option>
               <option value="ja">日本語</option>
@@ -1768,7 +1775,7 @@ export default function Home() {
   const [testerPassword, setTesterPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [checkingPassword, setCheckingPassword] = useState(false);
-  const [language, setLanguage] = useState<Language>("ja");
+  const [language, setLanguage] = useState<NaviLanguage>("en");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("create");
   const [raw, setRaw] = useState("");
@@ -1793,13 +1800,30 @@ export default function Home() {
   const [includeUpdateSummary, setIncludeUpdateSummary] = useState(false);
   const [updateSummaryLanguage, setUpdateSummaryLanguage] =
     useState<UpdateSummaryLanguage>("ja");
-  const t = translations[language];
+  const expertLanguage: Language =
+    language === "ja"
+      ? "ja"
+      : language === "zh_cn" || language === "zh_tw"
+        ? "zh"
+        : "en";
+  const t = translations[expertLanguage];
 
   useEffect(() => {
     const unlocked = window.sessionStorage.getItem(EXPERT_ACCESS_KEY) === "unlocked";
-    const timer = window.setTimeout(() => setExpertUnlocked(unlocked), 0);
+    const savedLanguage = window.localStorage.getItem(GLOBAL_LANGUAGE_KEY);
+    const timer = window.setTimeout(() => {
+      setExpertUnlocked(unlocked);
+      if (GLOBAL_LANGUAGES.includes(savedLanguage as NaviLanguage)) {
+        setLanguage(savedLanguage as NaviLanguage);
+      }
+    }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  function changeLanguage(nextLanguage: NaviLanguage) {
+    setLanguage(nextLanguage);
+    window.localStorage.setItem(GLOBAL_LANGUAGE_KEY, nextLanguage);
+  }
 
   const warningCount = useMemo(
     () => records.reduce((total, record) => total + record.warnings.length, 0),
@@ -2018,7 +2042,7 @@ export default function Home() {
       setComparisonItems([]);
       setRetainedCount(0);
       setMessage(
-        language === "en"
+        expertLanguage === "en"
           ? `${parsed.length} ${t.parsed}`
           : `${parsed.length}${t.parsed}`,
       );
@@ -2132,7 +2156,7 @@ export default function Home() {
   function addCustomSheet() {
     const used = new Set(customSheets.map((name) => name.toLowerCase()));
     const candidate = uniqueSheetName(
-      newSheetName.trim() || (language === "ja" ? "新しいSheet" : language === "zh" ? "新Sheet" : "New Sheet"),
+      newSheetName.trim() || (expertLanguage === "ja" ? "新しいSheet" : expertLanguage === "zh" ? "新Sheet" : "New Sheet"),
       used,
     );
     setCustomSheets((current) => [...current, candidate]);
@@ -2514,7 +2538,9 @@ export default function Home() {
     return (
       <TayaNaviPanel
         theme={theme}
+        language={language}
         onToggleTheme={changeTheme}
+        onLanguageChange={changeLanguage}
         onSelectTool={setActiveTool}
       />
     );
@@ -2571,11 +2597,15 @@ export default function Home() {
             <select
               id="language"
               value={language}
-              onChange={(event) => setLanguage(event.target.value as Language)}
+              onChange={(event) =>
+                changeLanguage(event.target.value as NaviLanguage)
+              }
             >
-              <option value="ja">日本語</option>
               <option value="en">English</option>
-              <option value="zh">中文</option>
+              <option value="ja">日本語</option>
+              <option value="zh_cn">中文（简体）</option>
+              <option value="zh_tw">中文（繁體）</option>
+              <option value="mn">Монгол</option>
             </select>
             <button
               className="lock-toggle"
