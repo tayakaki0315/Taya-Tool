@@ -3169,9 +3169,9 @@ export default function Home() {
                   <tbody>
                     <tr>
                       <td>#1.1</td>
-                      <td>Imran Anwar</td>
-                      <td>Microsoft Corp</td>
-                      <td>Current Chief Architect / Director...</td>
+                      <td>Sample Expert</td>
+                      <td>Example Company</td>
+                      <td>Current Director of Operations</td>
                       <td>Expert List</td>
                     </tr>
                   </tbody>
