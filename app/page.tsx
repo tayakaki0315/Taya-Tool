@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 
 type Language = "ja" | "en" | "zh";
 type SheetMode = "single" | "perExpert" | "custom";
+type WorkflowMode = "create" | "update";
 
 type ExpertRecord = {
   id: string;
+  stableId: string;
   number: string;
   name: string;
   company: string;
@@ -20,6 +22,57 @@ type ExpertRecord = {
   warnings: string[];
 };
 
+const DATA_FIELDS = [
+  "number",
+  "name",
+  "company",
+  "relevantExperience",
+  "employmentHistory",
+  "introduction",
+  "screening",
+  "fee",
+  "availability",
+] as const;
+
+type DataField = (typeof DATA_FIELDS)[number];
+type ComparisonStatus = "new" | "changed" | "unchanged";
+
+type ComparisonChange = {
+  field: DataField;
+  oldValue: string;
+  newValue: string;
+  useLatest: boolean;
+};
+
+type ComparisonItem = {
+  id: string;
+  status: ComparisonStatus;
+  latest: ExpertRecord;
+  existingId: string;
+  changes: ComparisonChange[];
+  matchedBy: "stable" | "name-company" | "name" | "number" | "new";
+};
+
+type ImportedWorkbookSummary = {
+  fileName: string;
+  sheetNames: string[];
+};
+
+const EXCEL_HEADERS = [
+  "番号",
+  "名前",
+  "企業",
+  "関連経歴",
+  "過去の経歴",
+  "紹介",
+  "スクリーニング質問に対する回答",
+  "金額",
+  "インタビュー可能な日付・候補",
+] as const;
+
+const TAYA_META_SHEET = "_TAYA_META";
+const TAYA_META_MARKER = "TAYA_TOOL_EXPERT_LIST";
+
 const MONTHS =
   "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December";
 const WEEKDAYS =
@@ -28,9 +81,35 @@ const WEEKDAYS =
 const translations = {
   ja: {
     title: "Taya Expert List Builder",
-    version: "v1.2",
+    version: "v1.3",
     subtitle: "エキスパート情報を貼り付け、Excel リストをすぐに作成できます。",
     privacy: "入力内容はブラウザ内だけで処理され、サーバーへ送信・保存されません。",
+    modeCreate: "新しいExcelを作成",
+    modeUpdate: "既存Excelを更新",
+    updateUploadTitle: "更新するExcelをアップロード",
+    updateUploadHelp: "Taya Toolで作成したExcel（C–K列の専用テンプレート）のみ対応しています。",
+    chooseExcel: "Excelを選択",
+    readingExcel: "Excelを読み込み中…",
+    uploadedExcel: "Excelを読み込みました",
+    invalidExcel: "Taya Toolで作成された対応Excelではありません。",
+    uploadRequired: "先に更新するExcelをアップロードしてください。",
+    latestInfoTitle: "最新のエキスパート情報",
+    latestInfoHelp: "最新情報を貼り付けると、旧Excelと比較して変更点を表示します。",
+    compareTitle: "変更内容を確認",
+    compareHelp: "変更された項目は最新内容が選択されています。必要な項目だけ旧内容に戻せます。",
+    statusNew: "新規",
+    statusChanged: "変更あり",
+    statusUnchanged: "変更なし",
+    statusRetained: "旧表のまま保持",
+    oldValue: "旧内容",
+    newValue: "最新内容",
+    useLatest: "最新を使用",
+    useOld: "旧内容を使用",
+    acceptAll: "すべて最新を使用",
+    keepAll: "すべて旧内容を使用",
+    newExpertHelp: "新しいエキスパートとして追加されます。",
+    unchangedHelp: "旧Excelから変更は検出されませんでした。",
+    updateParsed: "最新情報を比較しました。変更内容をご確認ください。",
     inputTitle: "1. エキスパート情報を貼り付け",
     inputHelp:
       "#1.1 - Name - … から始まる形式に対応しています。複数名をまとめて貼り付けても自動で分割します。",
@@ -88,9 +167,35 @@ const translations = {
   },
   en: {
     title: "Taya Expert List Builder",
-    version: "v1.2",
+    version: "v1.3",
     subtitle: "Paste expert profiles and turn them into a client-ready Excel list.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
+    modeCreate: "Create a new Excel",
+    modeUpdate: "Update an existing Excel",
+    updateUploadTitle: "Upload the Excel to update",
+    updateUploadHelp: "Only Excel files created by Taya Tool with the dedicated C–K template are supported.",
+    chooseExcel: "Choose Excel",
+    readingExcel: "Reading Excel…",
+    uploadedExcel: "Excel loaded",
+    invalidExcel: "This is not a supported Excel created by Taya Tool.",
+    uploadRequired: "Upload the Excel you want to update first.",
+    latestInfoTitle: "Latest expert information",
+    latestInfoHelp: "Paste the latest profiles to compare them with the uploaded Excel.",
+    compareTitle: "Review changes",
+    compareHelp: "Latest values are selected by default. You can keep any old value field by field.",
+    statusNew: "New",
+    statusChanged: "Changed",
+    statusUnchanged: "Unchanged",
+    statusRetained: "Retained from old file",
+    oldValue: "Old value",
+    newValue: "Latest value",
+    useLatest: "Use latest",
+    useOld: "Keep old",
+    acceptAll: "Use all latest values",
+    keepAll: "Keep all old values",
+    newExpertHelp: "This expert will be added as a new record.",
+    unchangedHelp: "No changes were detected from the uploaded Excel.",
+    updateParsed: "Latest information compared. Please review the changes.",
     inputTitle: "1. Paste expert information",
     inputHelp:
       "Supports the standard #1.1 - Name - … format. Paste multiple experts at once and they will be separated automatically.",
@@ -147,9 +252,35 @@ const translations = {
   },
   zh: {
     title: "Taya Expert List Builder",
-    version: "v1.2",
+    version: "v1.3",
     subtitle: "粘贴专家资料，一键整理并生成客户用 Excel 名单。",
     privacy: "所有内容仅在浏览器内处理，不会上传或保存到服务器。",
+    modeCreate: "创建新的Excel",
+    modeUpdate: "更新现有Excel",
+    updateUploadTitle: "上传需要更新的Excel",
+    updateUploadHelp: "仅支持由Taya Tool生成、使用C–K列专用模板的Excel。",
+    chooseExcel: "选择Excel",
+    readingExcel: "正在读取Excel……",
+    uploadedExcel: "Excel读取成功",
+    invalidExcel: "这不是由Taya Tool生成的受支持Excel。",
+    uploadRequired: "请先上传需要更新的Excel。",
+    latestInfoTitle: "最新专家信息",
+    latestInfoHelp: "粘贴最新资料后，系统会与旧Excel比较并显示变化。",
+    compareTitle: "确认变化内容",
+    compareHelp: "有变化的字段默认使用最新内容，也可以逐项保留旧内容。",
+    statusNew: "新增",
+    statusChanged: "有变化",
+    statusUnchanged: "无变化",
+    statusRetained: "保留旧表内容",
+    oldValue: "旧内容",
+    newValue: "最新内容",
+    useLatest: "使用最新内容",
+    useOld: "保留旧内容",
+    acceptAll: "全部使用最新内容",
+    keepAll: "全部保留旧内容",
+    newExpertHelp: "将作为新专家添加到Excel。",
+    unchangedHelp: "与上传的旧Excel相比没有检测到变化。",
+    updateParsed: "最新资料比较完成，请确认变化内容。",
     inputTitle: "1. 粘贴专家信息",
     inputHelp:
       "支持以 #1.1 - Name - … 开头的标准格式，也可以一次粘贴多位专家。",
@@ -212,6 +343,46 @@ function cleanText(value: string) {
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function createStableId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `taya-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function comparableText(value: string) {
+  return cleanText(value).toLocaleLowerCase();
+}
+
+function personKey(value: string) {
+  return value
+    .toLocaleLowerCase()
+    .normalize("NFKC")
+    .replace(/[^a-z0-9\p{L}]+/gu, "")
+    .trim();
+}
+
+function excelCellText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return cleanText(String(value));
+  }
+  if (typeof value === "object") {
+    const objectValue = value as {
+      richText?: Array<{ text?: string }>;
+      result?: unknown;
+      text?: unknown;
+      hyperlink?: unknown;
+    };
+    if (Array.isArray(objectValue.richText)) {
+      return cleanText(objectValue.richText.map((part) => part.text ?? "").join(""));
+    }
+    if (objectValue.result !== undefined) return excelCellText(objectValue.result);
+    if (objectValue.text !== undefined) return excelCellText(objectValue.text);
+  }
+  return cleanText(String(value));
 }
 
 function splitExpertBlocks(raw: string) {
@@ -473,6 +644,7 @@ function parseExpert(block: string, index: number): ExpertRecord | null {
 
   return {
     id: `${number}-${index}-${Date.now()}`,
+    stableId: createStableId(),
     number,
     name,
     company,
@@ -491,6 +663,108 @@ function parseExperts(raw: string) {
   return splitExpertBlocks(raw)
     .map((block, index) => parseExpert(block, index))
     .filter((record): record is ExpertRecord => Boolean(record));
+}
+
+function findExistingMatch(
+  latest: ExpertRecord,
+  existing: ExpertRecord[],
+  usedIds: Set<string>,
+) {
+  const available = existing.filter((record) => !usedIds.has(record.id));
+  const latestName = personKey(latest.name);
+  const latestCompany = companyKey(latest.company);
+  const latestNumber = comparableText(latest.number);
+
+  const exact = available.find(
+    (record) =>
+      latestName &&
+      latestCompany &&
+      personKey(record.name) === latestName &&
+      companyKey(record.company) === latestCompany,
+  );
+  if (exact) return { record: exact, matchedBy: "name-company" as const };
+
+  const sameName = available.filter(
+    (record) => latestName && personKey(record.name) === latestName,
+  );
+  if (sameName.length === 1) {
+    return { record: sameName[0], matchedBy: "name" as const };
+  }
+
+  const sameNumber = available.filter(
+    (record) => latestNumber && comparableText(record.number) === latestNumber,
+  );
+  if (sameNumber.length === 1) {
+    return { record: sameNumber[0], matchedBy: "number" as const };
+  }
+
+  return null;
+}
+
+function compareWithExisting(
+  latestRecords: ExpertRecord[],
+  existingRecords: ExpertRecord[],
+  defaultSheetName: string,
+) {
+  const usedExistingIds = new Set<string>();
+  const mergedRecords = existingRecords.map((record) => ({ ...record }));
+  const comparisons: ComparisonItem[] = [];
+
+  latestRecords.forEach((latest) => {
+    const match = findExistingMatch(latest, existingRecords, usedExistingIds);
+    if (!match) {
+      const newRecord = {
+        ...latest,
+        sheetName: defaultSheetName || "Expert List",
+      };
+      newRecord.warnings = calculateWarnings(newRecord);
+      mergedRecords.push(newRecord);
+      comparisons.push({
+        id: `comparison-${latest.id}`,
+        status: "new",
+        latest: newRecord,
+        existingId: "",
+        changes: [],
+        matchedBy: "new",
+      });
+      return;
+    }
+
+    usedExistingIds.add(match.record.id);
+    const changes: ComparisonChange[] = DATA_FIELDS.flatMap((field) => {
+      const oldValue = match.record[field];
+      const newValue = latest[field];
+      if (!newValue || comparableText(oldValue) === comparableText(newValue)) return [];
+      return [{ field, oldValue, newValue, useLatest: true }];
+    });
+
+    const mergedIndex = mergedRecords.findIndex(
+      (record) => record.id === match.record.id,
+    );
+    if (mergedIndex >= 0 && changes.length) {
+      const merged = { ...mergedRecords[mergedIndex] };
+      changes.forEach((change) => {
+        merged[change.field] = change.newValue;
+      });
+      merged.warnings = calculateWarnings(merged);
+      mergedRecords[mergedIndex] = merged;
+    }
+
+    comparisons.push({
+      id: `comparison-${latest.id}`,
+      status: changes.length ? "changed" : "unchanged",
+      latest: { ...latest, sheetName: match.record.sheetName },
+      existingId: match.record.id,
+      changes,
+      matchedBy: match.matchedBy,
+    });
+  });
+
+  return {
+    comparisons,
+    mergedRecords,
+    retainedCount: existingRecords.length - usedExistingIds.size,
+  };
 }
 
 function safeFileName(value: string) {
@@ -556,8 +830,15 @@ function estimatedRowHeight(values: string[]) {
 export default function Home() {
   const [language, setLanguage] = useState<Language>("ja");
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("create");
   const [raw, setRaw] = useState("");
   const [records, setRecords] = useState<ExpertRecord[]>([]);
+  const [existingRecords, setExistingRecords] = useState<ExpertRecord[]>([]);
+  const [comparisonItems, setComparisonItems] = useState<ComparisonItem[]>([]);
+  const [retainedCount, setRetainedCount] = useState(0);
+  const [importedWorkbook, setImportedWorkbook] =
+    useState<ImportedWorkbookSummary | null>(null);
+  const [readingExcel, setReadingExcel] = useState(false);
   const [fileName, setFileName] = useState("Expert_List.xlsx");
   const [sheetMode, setSheetMode] = useState<SheetMode>("single");
   const [singleSheetName, setSingleSheetName] = useState("Expert List");
@@ -576,26 +857,176 @@ export default function Home() {
     [records],
   );
 
+  const comparisonStats = useMemo(
+    () =>
+      comparisonItems.reduce(
+        (stats, item) => ({ ...stats, [item.status]: stats[item.status] + 1 }),
+        { new: 0, changed: 0, unchanged: 0 },
+      ),
+    [comparisonItems],
+  );
+
   function changeTheme() {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
     document.documentElement.dataset.theme = next;
   }
 
+  function switchWorkflowMode(nextMode: WorkflowMode) {
+    setWorkflowMode(nextMode);
+    setRaw("");
+    setRecords([]);
+    setExistingRecords([]);
+    setComparisonItems([]);
+    setRetainedCount(0);
+    setImportedWorkbook(null);
+    setSheetMode("single");
+    setSingleSheetName("Expert List");
+    setCustomSheets(["Expert List"]);
+    setFileName(nextMode === "update" ? "Expert_List_updated.xlsx" : "Expert_List.xlsx");
+    setMessage("");
+    setMessageType("");
+  }
+
+  async function loadExistingExcel(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setReadingExcel(true);
+    setMessage("");
+    try {
+      const { Workbook } = await import("exceljs");
+      const workbook = new Workbook();
+      const buffer = await file.arrayBuffer();
+      await workbook.xlsx.load(buffer);
+
+      const metaSheet = workbook.getWorksheet(TAYA_META_SHEET);
+      const metaMarked =
+        metaSheet && excelCellText(metaSheet.getCell("A1").value) === TAYA_META_MARKER;
+      const metadataIds = new Map<string, string>();
+      if (metaMarked && metaSheet) {
+        for (let rowNumber = 3; rowNumber <= metaSheet.actualRowCount; rowNumber += 1) {
+          const row = metaSheet.getRow(rowNumber);
+          const stableId = excelCellText(row.getCell(1).value);
+          const sheetName = excelCellText(row.getCell(5).value);
+          const excelRow = excelCellText(row.getCell(6).value);
+          if (stableId && sheetName && excelRow) {
+            metadataIds.set(`${sheetName}::${excelRow}`, stableId);
+          }
+        }
+      }
+
+      const importedRecords: ExpertRecord[] = [];
+      const supportedSheetNames: string[] = [];
+      workbook.worksheets.forEach((sheet) => {
+        if (sheet.name === TAYA_META_SHEET) return;
+        const headers = EXCEL_HEADERS.map((_, index) =>
+          excelCellText(sheet.getCell(2, index + 3).value),
+        );
+        const supported = EXCEL_HEADERS.every(
+          (header, index) => headers[index] === header,
+        );
+        if (!supported) return;
+
+        supportedSheetNames.push(sheet.name);
+        for (let rowNumber = 3; rowNumber <= sheet.actualRowCount; rowNumber += 1) {
+          const values = EXCEL_HEADERS.map((_, index) =>
+            excelCellText(sheet.getCell(rowNumber, index + 3).value),
+          );
+          if (!values.some(Boolean)) continue;
+          const recordBase = {
+            number: values[0],
+            name: values[1],
+            company: values[2],
+            relevantExperience: values[3],
+            employmentHistory: values[4],
+            introduction: values[5],
+            screening: values[6],
+            fee: values[7],
+            availability: values[8],
+          };
+          importedRecords.push({
+            id: `import-${sheet.name}-${rowNumber}-${Date.now()}`,
+            stableId:
+              metadataIds.get(`${sheet.name}::${rowNumber}`) ?? createStableId(),
+            ...recordBase,
+            sheetName: sheet.name,
+            warnings: calculateWarnings(recordBase),
+          });
+        }
+      });
+
+      const creatorMatches = comparableText(workbook.creator ?? "").includes(
+        "taya expert list builder",
+      );
+      if (!supportedSheetNames.length || (!metaMarked && !creatorMatches)) {
+        throw new Error("Unsupported Taya workbook");
+      }
+
+      setExistingRecords(importedRecords);
+      setRecords(importedRecords);
+      setImportedWorkbook({ fileName: file.name, sheetNames: supportedSheetNames });
+      setCustomSheets(supportedSheetNames);
+      setSheetMode("custom");
+      setComparisonItems([]);
+      setRetainedCount(importedRecords.length);
+      setFileName(
+        `${file.name.replace(/\.xlsx$/i, "") || "Expert_List"}_updated.xlsx`,
+      );
+      setMessage(
+        `${t.uploadedExcel}: ${file.name} · ${importedRecords.length} ${t.experts}`,
+      );
+      setMessageType("success");
+    } catch (error) {
+      console.error(error);
+      setExistingRecords([]);
+      setRecords([]);
+      setImportedWorkbook(null);
+      setComparisonItems([]);
+      setRetainedCount(0);
+      setMessage(t.invalidExcel);
+      setMessageType("error");
+    } finally {
+      setReadingExcel(false);
+    }
+  }
+
   function runParser() {
     const parsed = parseExperts(raw);
-    setRecords(parsed);
-    setCustomSheets(["Expert List"]);
     if (!parsed.length) {
       setMessage(t.parseError);
       setMessageType("error");
       return;
     }
-    setMessage(
-      language === "en"
-        ? `${parsed.length} ${t.parsed}`
-        : `${parsed.length}${t.parsed}`,
-    );
+
+    if (workflowMode === "update") {
+      if (!importedWorkbook || !existingRecords.length) {
+        setMessage(t.uploadRequired);
+        setMessageType("error");
+        return;
+      }
+      const comparison = compareWithExisting(
+        parsed,
+        existingRecords,
+        customSheets[0] || "Expert List",
+      );
+      setRecords(comparison.mergedRecords);
+      setComparisonItems(comparison.comparisons);
+      setRetainedCount(comparison.retainedCount);
+      setSheetMode("custom");
+      setMessage(t.updateParsed);
+    } else {
+      setRecords(parsed);
+      setCustomSheets(["Expert List"]);
+      setComparisonItems([]);
+      setRetainedCount(0);
+      setMessage(
+        language === "en"
+          ? `${parsed.length} ${t.parsed}`
+          : `${parsed.length}${t.parsed}`,
+      );
+    }
     setMessageType("success");
     window.setTimeout(
       () => document.getElementById("results")?.scrollIntoView({ behavior: "smooth" }),
@@ -606,6 +1037,10 @@ export default function Home() {
   function clearAll() {
     setRaw("");
     setRecords([]);
+    setExistingRecords([]);
+    setComparisonItems([]);
+    setRetainedCount(0);
+    setImportedWorkbook(null);
     setSheetMode("single");
     setSingleSheetName("Expert List");
     setCustomSheets(["Expert List"]);
@@ -613,6 +1048,60 @@ export default function Home() {
     setSheetOrganizerOpen(false);
     setMessage("");
     setMessageType("");
+  }
+
+  function toggleComparisonChange(itemId: string, field: DataField) {
+    const item = comparisonItems.find((candidate) => candidate.id === itemId);
+    const change = item?.changes.find((candidate) => candidate.field === field);
+    if (!item || !change || !item.existingId) return;
+    const nextUseLatest = !change.useLatest;
+
+    setComparisonItems((current) =>
+      current.map((candidate) =>
+        candidate.id === itemId
+          ? {
+              ...candidate,
+              changes: candidate.changes.map((candidateChange) =>
+                candidateChange.field === field
+                  ? { ...candidateChange, useLatest: nextUseLatest }
+                  : candidateChange,
+              ),
+            }
+          : candidate,
+      ),
+    );
+    setRecords((current) =>
+      current.map((record) => {
+        if (record.id !== item.existingId) return record;
+        const next = {
+          ...record,
+          [field]: nextUseLatest ? change.newValue : change.oldValue,
+        };
+        return { ...next, warnings: calculateWarnings(next) };
+      }),
+    );
+  }
+
+  function setAllComparisonChanges(useLatest: boolean) {
+    setComparisonItems((current) =>
+      current.map((item) => ({
+        ...item,
+        changes: item.changes.map((change) => ({ ...change, useLatest })),
+      })),
+    );
+    setRecords((current) =>
+      current.map((record) => {
+        const item = comparisonItems.find(
+          (candidate) => candidate.existingId === record.id,
+        );
+        if (!item?.changes.length) return record;
+        const next = { ...record };
+        item.changes.forEach((change) => {
+          next[change.field] = useLatest ? change.newValue : change.oldValue;
+        });
+        return { ...next, warnings: calculateWarnings(next) };
+      }),
+    );
   }
 
   function updateRecord(
@@ -702,6 +1191,9 @@ export default function Home() {
       const workbook = new Workbook();
       workbook.creator = "Taya Expert List Builder";
       workbook.created = new Date();
+      workbook.modified = new Date();
+      workbook.title = "Taya Tool Expert List";
+      workbook.subject = "Taya Tool supported expert list template";
 
       const sheetGroups = groupRecordsForSheets(
         records,
@@ -709,6 +1201,7 @@ export default function Home() {
         singleSheetName,
       );
       const usedSheetNames = new Set<string>();
+      const metaRows: string[][] = [];
 
       sheetGroups.forEach((group) => {
       const sheetName = uniqueSheetName(group.name, usedSheetNames);
@@ -755,18 +1248,7 @@ export default function Home() {
       titleCell.alignment = { vertical: "middle", horizontal: "left" };
       sheet.getRow(1).height = 30;
 
-      const headers = [
-        "番号",
-        "名前",
-        "企業",
-        "関連経歴",
-        "過去の経歴",
-        "紹介",
-        "スクリーニング質問に対する回答",
-        "金額",
-        "インタビュー可能な日付・候補",
-      ];
-      headers.forEach((header, index) => {
+      EXCEL_HEADERS.forEach((header, index) => {
         const cell = sheet.getCell(2, index + 3);
         cell.value = header;
         cell.font = { name: "Yu Gothic", size: 11, bold: true, color: { argb: "FF102A3A" } };
@@ -806,6 +1288,14 @@ export default function Home() {
           };
         });
         sheet.getRow(rowNumber).height = estimatedRowHeight(values);
+        metaRows.push([
+          record.stableId || createStableId(),
+          record.number,
+          record.name,
+          record.company,
+          sheetName,
+          String(rowNumber),
+        ]);
       });
 
       sheet.autoFilter = {
@@ -814,6 +1304,12 @@ export default function Home() {
       };
       sheet.headerFooter.oddFooter = "&LGenerated by Taya Expert List Builder&CPage &P / &N";
       });
+
+      const metaSheet = workbook.addWorksheet(TAYA_META_SHEET);
+      metaSheet.state = "veryHidden";
+      metaSheet.addRow([TAYA_META_MARKER, "1.3"]);
+      metaSheet.addRow(["Stable ID", "Number", "Name", "Company", "Sheet", "Row"]);
+      metaRows.forEach((row) => metaSheet.addRow(row));
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer as BlobPart], {
@@ -888,13 +1384,62 @@ export default function Home() {
           {t.privacy}
         </div>
 
+        <div className="workflow-tabs" role="tablist" aria-label="Excel workflow">
+          <button
+            className={workflowMode === "create" ? "is-active" : ""}
+            type="button"
+            role="tab"
+            aria-selected={workflowMode === "create"}
+            onClick={() => switchWorkflowMode("create")}
+          >
+            <span>＋</span>
+            {t.modeCreate}
+          </button>
+          <button
+            className={workflowMode === "update" ? "is-active" : ""}
+            type="button"
+            role="tab"
+            aria-selected={workflowMode === "update"}
+            onClick={() => switchWorkflowMode("update")}
+          >
+            <span>↻</span>
+            {t.modeUpdate}
+          </button>
+        </div>
+
         <section className="card">
           <div className="section-heading">
             <div>
-              <h2>{t.inputTitle}</h2>
-              <p>{t.inputHelp}</p>
+              <h2>{workflowMode === "update" ? t.latestInfoTitle : t.inputTitle}</h2>
+              <p>{workflowMode === "update" ? t.latestInfoHelp : t.inputHelp}</p>
             </div>
           </div>
+
+          {workflowMode === "update" && (
+            <div className={`upload-panel ${importedWorkbook ? "is-loaded" : ""}`}>
+              <div className="upload-icon" aria-hidden="true">XL</div>
+              <div className="upload-copy">
+                <strong>{t.updateUploadTitle}</strong>
+                <p>{t.updateUploadHelp}</p>
+                {importedWorkbook && (
+                  <div className="upload-summary">
+                    <span>{importedWorkbook.fileName}</span>
+                    <span>{existingRecords.length} {t.experts}</span>
+                    <span>{importedWorkbook.sheetNames.length} Sheet</span>
+                  </div>
+                )}
+              </div>
+              <label className="file-picker">
+                <input
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={loadExistingExcel}
+                  disabled={readingExcel}
+                />
+                {readingExcel ? t.readingExcel : t.chooseExcel}
+              </label>
+            </div>
+          )}
 
           <label className="field-label" htmlFor="raw-experts">
             {t.rawLabel}
@@ -981,6 +1526,92 @@ export default function Home() {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {workflowMode === "update" && comparisonItems.length > 0 && (
+            <div className="comparison-review">
+              <div className="comparison-heading">
+                <div>
+                  <h3>{t.compareTitle}</h3>
+                  <p>{t.compareHelp}</p>
+                </div>
+                <div className="comparison-actions">
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => setAllComparisonChanges(true)}
+                  >
+                    {t.acceptAll}
+                  </button>
+                  <button
+                    className="button button-muted"
+                    type="button"
+                    onClick={() => setAllComparisonChanges(false)}
+                  >
+                    {t.keepAll}
+                  </button>
+                </div>
+              </div>
+
+              <div className="comparison-stats">
+                <span className="comparison-stat new">{comparisonStats.new} {t.statusNew}</span>
+                <span className="comparison-stat changed">{comparisonStats.changed} {t.statusChanged}</span>
+                <span className="comparison-stat unchanged">{comparisonStats.unchanged} {t.statusUnchanged}</span>
+                <span className="comparison-stat retained">{retainedCount} {t.statusRetained}</span>
+              </div>
+
+              <div className="comparison-list">
+                {comparisonItems.map((item, index) => {
+                  const statusLabel =
+                    item.status === "new"
+                      ? t.statusNew
+                      : item.status === "changed"
+                        ? t.statusChanged
+                        : t.statusUnchanged;
+                  return (
+                    <details
+                      className={`comparison-item ${item.status}`}
+                      key={item.id}
+                      open={item.status === "changed" && (comparisonItems.length <= 5 || index === 0)}
+                    >
+                      <summary>
+                        <span className={`comparison-badge ${item.status}`}>{statusLabel}</span>
+                        <strong>{item.latest.name || "Unnamed expert"}</strong>
+                        <small>{item.latest.number} · {item.latest.company}</small>
+                        <span className="chevron" aria-hidden="true">⌄</span>
+                      </summary>
+
+                      <div className="comparison-content">
+                        {item.status === "new" && <p>{t.newExpertHelp}</p>}
+                        {item.status === "unchanged" && <p>{t.unchangedHelp}</p>}
+                        {item.changes.map((change) => (
+                          <div className="change-row" key={change.field}>
+                            <div className="change-field">{t.fields[change.field]}</div>
+                            <div className="change-value old">
+                              <span>{t.oldValue}</span>
+                              <pre>{change.oldValue || "—"}</pre>
+                            </div>
+                            <div className="change-arrow" aria-hidden="true">→</div>
+                            <div className="change-value latest">
+                              <span>{t.newValue}</span>
+                              <pre>{change.newValue}</pre>
+                            </div>
+                            <button
+                              className={`change-choice ${change.useLatest ? "use-latest" : "use-old"}`}
+                              type="button"
+                              aria-pressed={change.useLatest}
+                              onClick={() => toggleComparisonChange(item.id, change.field)}
+                            >
+                              {change.useLatest ? t.useLatest : t.useOld}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
             </div>
           )}
 
