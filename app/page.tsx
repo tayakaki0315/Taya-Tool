@@ -747,7 +747,7 @@ type ScreeningMarker = {
   contentStart: number;
 };
 
-const SCREENING_MARKER_SOURCE = String.raw`(?:[\[【]\s*(?:Q(?:\d+)?\s*[.。:：)\-]?|A(?:\d+)?\s*[.。:：)\-]?|回答\s*[.。:：\-]?|→)\s*[\]】]|Q(?:\d+)?\s*[.。:：)\-]|A(?:\d+)?\s*[.。:：)\-]|Q\d+\b|A\d+\b|回答\s*[:：]|→)`;
+const SCREENING_MARKER_SOURCE = String.raw`(?:[\[【]\s*(?:Q(?:\d+)?\s*[.。:：)\-]?|A(?:\d+)?\s*[.。:：),，;；\-]?|回答\s*[.。:：\-]?|→)\s*[\]】]|[①-⑳❶-❿⓫-⓴]|Q(?:\d+)?\s*[.。:：)\-]|A(?:\d+)?\s*[.。:：),，;；\-]|Q\d+\b|A\d+\b|回答\s*[:：]|→)`;
 
 function screeningMarkerRegex(global = false) {
   return new RegExp(`(^|\\s)(${SCREENING_MARKER_SOURCE})`, global ? "gimu" : "imu");
@@ -761,9 +761,9 @@ function screeningMarkers(source: string) {
   while ((match = regex.exec(source)) !== null) {
     const prefixLength = match[1]?.length ?? 0;
     const marker = match[2];
-    const normalized = marker.replace(/[\[\]【】\s.。:：)\-]/g, "");
+    const normalized = marker.replace(/[\[\]【】\s.。:：),，;；\-]/g, "");
     markers.push({
-      type: /^Q/i.test(normalized) ? "question" : "answer",
+      type: /^(?:Q|[①-⑳❶-❿⓫-⓴])/i.test(normalized) ? "question" : "answer",
       markerIndex: match.index + prefixLength,
       contentStart: match.index + match[0].length,
     });
@@ -786,6 +786,7 @@ function findScreeningBoundary(source: string): ScreeningBoundary | null {
   const labeledPatterns = [
     /Screening update(?:\s*\([^)]*\)|\s+\d{1,2}\/\d{1,2}\/\d{2,4})?\s*:?/i,
     /[\[【]\s*Screen(?:ed|ing)\b[^\]】]*[\]】]\s*:?/i,
+    /\bScreen(?:ed|ing)\s+\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s*:?/i,
   ];
 
   labeledPatterns.forEach((pattern) => {
@@ -887,7 +888,7 @@ function parseTitle(headline: string) {
   );
   return cleanText(
     headline
-      .replace(/^[^\p{L}\p{N}]+/u, "")
+      .replace(/^[\s✅✔☑\uFE0F]+/u, "")
       .replace(datedSuffix, ""),
   );
 }
@@ -1050,6 +1051,13 @@ function extractScreeningLabel(block: string) {
 
   const screened = block.match(/[\[【]\s*Screen(?:ed|ing)\b[^\]】]*[\]】]\s*:?/i);
   if (screened) return cleanText(screened[0]);
+
+  const screenedPlain = block.match(
+    /\bScreen(?:ed|ing)\s+\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s*:?/i,
+  );
+  if (screenedPlain) {
+    return cleanText(screenedPlain[0]).replace(/\s*:?$/, ":");
+  }
   return "Screening Questions:";
 }
 
@@ -1292,7 +1300,7 @@ async function writeSlackClipboard(plainText: string, html: string) {
 const slackTranslations = {
   en: {
     title: "Slack Expert Formatter",
-    version: "v1.3",
+    version: "v1.4",
     subtitle: "Turn multiple expert profiles into clean, copy-ready Slack posts.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     inputTitle: "1. Paste expert profiles",
@@ -1313,10 +1321,14 @@ const slackTranslations = {
     employment: "Employment History",
     edit: "Edit",
     doneEditing: "Done editing",
-    editHelp: "Edit the complete Screening Questions section below. All other detected fields remain unchanged.",
+    editHelp: "Screening Questions is open by default. Expand another section only when you need to correct it.",
     screeningEditorLabel: "Screening Questions",
+    basicFieldsGroup: "Number, name & title",
+    introductionGroup: "Expert introduction",
+    historyGroup: "Employment, availability & fee",
     number: "Number",
     name: "Name",
+    company: "Company",
     titleField: "Title",
     introduction: "Expert introduction",
     screeningLabel: "Screening heading",
@@ -1331,7 +1343,7 @@ const slackTranslations = {
   },
   ja: {
     title: "Slack Expert Formatter",
-    version: "v1.3",
+    version: "v1.4",
     subtitle: "複数のエキスパート情報を、Slackに貼り付けやすい形式へ整えます。",
     privacy: "入力内容はブラウザ内だけで処理され、アップロードや保存はされません。",
     inputTitle: "1. エキスパート情報を貼り付け",
@@ -1352,10 +1364,14 @@ const slackTranslations = {
     employment: "Employment History",
     edit: "編集",
     doneEditing: "編集を完了",
-    editHelp: "Screening Questions全体をこの欄で編集できます。その他の認識項目は変更されません。",
+    editHelp: "Screening Questionsは最初から開いています。修正が必要な項目だけ展開してください。",
     screeningEditorLabel: "Screening Questions",
+    basicFieldsGroup: "番号・名前・タイトル",
+    introductionGroup: "エキスパート紹介",
+    historyGroup: "経歴・Availability・Fee",
     number: "番号",
     name: "名前",
+    company: "Company",
     titleField: "タイトル",
     introduction: "エキスパート紹介",
     screeningLabel: "Screening見出し",
@@ -1370,7 +1386,7 @@ const slackTranslations = {
   },
   zh: {
     title: "Slack Expert Formatter",
-    version: "v1.3",
+    version: "v1.4",
     subtitle: "将多位专家信息整理成可直接复制到 Slack 的格式。",
     privacy: "所有内容只在浏览器中处理，不会上传或保存。",
     inputTitle: "1. 粘贴专家信息",
@@ -1391,10 +1407,14 @@ const slackTranslations = {
     employment: "Employment History",
     edit: "编辑",
     doneEditing: "完成编辑",
-    editHelp: "可在下方整体编辑 Screening Questions，其他已识别内容不会改变。",
+    editHelp: "Screening Questions 默认展开，其他内容只在需要修改时展开即可。",
     screeningEditorLabel: "Screening Questions",
+    basicFieldsGroup: "编号、姓名与 Title",
+    introductionGroup: "专家介绍",
+    historyGroup: "经历、Availability 与 Fee",
     number: "编号",
     name: "姓名",
+    company: "Company",
     titleField: "Title",
     introduction: "专家介绍",
     screeningLabel: "Screening 标题",
@@ -2443,16 +2463,129 @@ function SlackFormatterPanel({
                     {isEditing && (
                       <div className="slack-editor slack-screening-editor">
                         <p className="slack-editor-help">{t.editHelp}</p>
-                        <label>
-                          <span>{t.screeningEditorLabel}</span>
-                          <textarea
-                            value={expert.screeningText}
-                            onChange={(event) =>
-                              updateExpert(expert.id, "screeningText", event.target.value)
-                            }
-                            spellCheck={false}
-                          />
-                        </label>
+                        <details className="slack-edit-section" open>
+                          <summary>{t.screeningEditorLabel}</summary>
+                          <div className="slack-edit-section-body">
+                            <label>
+                              <span>{t.screeningLabel}</span>
+                              <input
+                                value={expert.screeningLabel}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "screeningLabel", event.target.value)
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>{t.screeningEditorLabel}</span>
+                              <textarea
+                                value={expert.screeningText}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "screeningText", event.target.value)
+                                }
+                                spellCheck={false}
+                              />
+                            </label>
+                          </div>
+                        </details>
+
+                        <details className="slack-edit-section">
+                          <summary>{t.basicFieldsGroup}</summary>
+                          <div className="slack-edit-section-body slack-edit-grid">
+                            <label>
+                              <span>{t.number}</span>
+                              <input
+                                value={expert.number}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "number", event.target.value)
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>{t.name}</span>
+                              <input
+                                value={expert.name}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "name", event.target.value)
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>{t.company}</span>
+                              <input
+                                value={expert.company}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "company", event.target.value)
+                                }
+                              />
+                            </label>
+                            <label className="slack-edit-wide">
+                              <span>{t.titleField}</span>
+                              <input
+                                value={expert.title}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "title", event.target.value)
+                                }
+                              />
+                            </label>
+                          </div>
+                        </details>
+
+                        <details className="slack-edit-section">
+                          <summary>{t.introductionGroup}</summary>
+                          <div className="slack-edit-section-body">
+                            <label>
+                              <span>{t.introduction}</span>
+                              <textarea
+                                value={expert.introduction}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "introduction", event.target.value)
+                                }
+                              />
+                            </label>
+                          </div>
+                        </details>
+
+                        <details className="slack-edit-section">
+                          <summary>{t.historyGroup}</summary>
+                          <div className="slack-edit-section-body slack-edit-grid">
+                            <label className="slack-edit-wide">
+                              <span>{t.history}</span>
+                              <textarea
+                                value={expert.employmentHistory}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "employmentHistory", event.target.value)
+                                }
+                              />
+                            </label>
+                            <label className="slack-edit-wide">
+                              <span>{t.availability}</span>
+                              <textarea
+                                value={expert.availability}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "availability", event.target.value)
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>{t.location}</span>
+                              <input
+                                value={expert.location}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "location", event.target.value)
+                                }
+                              />
+                            </label>
+                            <label>
+                              <span>{t.fee}</span>
+                              <input
+                                value={expert.fee}
+                                onChange={(event) =>
+                                  updateExpert(expert.id, "fee", event.target.value)
+                                }
+                              />
+                            </label>
+                          </div>
+                        </details>
                       </div>
                     )}
                     <div className="slack-preview">
