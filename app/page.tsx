@@ -168,7 +168,7 @@ const translations = {
     updateParsed: "最新情報を比較しました。変更内容をご確認ください。",
     inputTitle: "1. エキスパート情報を貼り付け",
     inputHelp:
-      "#1.1 - Name - … から始まる形式に対応しています。複数名をまとめて貼り付けても自動で分割します。",
+      "#1.1 / #A-2 - Name - … のような形式に対応しています。複数名も自動で分割します。",
     rawLabel: "エキスパート情報",
     rawPlaceholder: "ここにエキスパート情報を貼り付けてください…",
     parse: "解析する",
@@ -212,7 +212,7 @@ const translations = {
     exported: "Excel を作成し、ダウンロードを開始しました。",
     parsed: "名のエキスパートを抽出しました。内容をご確認ください。",
     parseError:
-      "「#1.1 - Name - …」で始まるエキスパート情報を見つけられませんでした。",
+      "「#番号 - Name - …」で始まるエキスパート情報を見つけられませんでした。",
     exportError: "Excel の作成に失敗しました。もう一度お試しください。",
     exportEmpty: "先にエキスパート情報を解析してください。",
     fields: {
@@ -262,7 +262,7 @@ const translations = {
     updateParsed: "Latest information compared. Please review the changes.",
     inputTitle: "1. Paste expert information",
     inputHelp:
-      "Supports the standard #1.1 - Name - … format. Paste multiple experts at once and they will be separated automatically.",
+      "Supports numeric or letter-based IDs such as #1.1 and #A-2. Multiple experts are separated automatically.",
     rawLabel: "Expert information",
     rawPlaceholder: "Paste expert information here…",
     parse: "Parse experts",
@@ -305,7 +305,7 @@ const translations = {
     exporting: "Creating Excel…",
     exported: "The Excel file was created and the download has started.",
     parsed: "experts extracted. Please review the fields below.",
-    parseError: "No expert block beginning with “#1.1 - Name - …” was found.",
+    parseError: "No expert block beginning with “#ID - Name - …” was found.",
     exportError: "The Excel file could not be created. Please try again.",
     exportEmpty: "Parse at least one expert first.",
     fields: {
@@ -355,7 +355,7 @@ const translations = {
     updateParsed: "最新资料比较完成，请确认变化内容。",
     inputTitle: "1. 粘贴专家信息",
     inputHelp:
-      "支持以 #1.1 - Name - … 开头的标准格式，也可以一次粘贴多位专家。",
+      "支持 #1.1、#A-2 等数字或字母编号，也可以一次粘贴多位专家。",
     rawLabel: "专家信息",
     rawPlaceholder: "请在这里粘贴专家信息……",
     parse: "解析专家",
@@ -396,7 +396,7 @@ const translations = {
     exporting: "正在生成 Excel……",
     exported: "Excel 已生成并开始下载。",
     parsed: "位专家已成功解析，请确认以下内容。",
-    parseError: "没有找到以“#1.1 - Name - …”开头的专家资料。",
+    parseError: "没有找到以“#编号 - Name - …”开头的专家资料。",
     exportError: "Excel 生成失败，请重试。",
     exportEmpty: "请先解析至少一位专家。",
     fields: {
@@ -721,7 +721,7 @@ function excelCellText(value: unknown): string {
 
 function splitExpertBlocks(raw: string) {
   const text = cleanText(raw);
-  const regex = /#\d+(?:\.\d+)*\s*-\s*/g;
+  const regex = /#\S+\s+-\s+/g;
   const starts: number[] = [];
   let match: RegExpExecArray | null;
 
@@ -926,7 +926,7 @@ function calculateWarnings(record: {
 }
 
 function parseExpert(block: string, index: number): ExpertRecord | null {
-  const header = block.match(/^#([\d.]+)\s*-\s*(.*?)\s*-\s*/s);
+  const header = block.match(/^#(\S+)\s+-\s+(.+?)\s+-\s+/s);
   if (!header) return null;
 
   const number = `#${header[1]}`;
@@ -1252,11 +1252,11 @@ async function writeSlackClipboard(plainText: string, html: string) {
 const slackTranslations = {
   en: {
     title: "Slack Expert Formatter",
-    version: "v1.1",
+    version: "v1.2",
     subtitle: "Turn multiple expert profiles into clean, copy-ready Slack posts.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     inputTitle: "1. Paste expert profiles",
-    inputHelp: "Paste one or many profiles beginning with #1.1 - Name - …",
+    inputHelp: "Use numeric or letter-based IDs such as #1.1 and #A-2. Paste one or many profiles at once.",
     label: "Expert information",
     placeholder: "Paste expert profiles here…",
     generate: "Create Slack posts",
@@ -1269,7 +1269,7 @@ const slackTranslations = {
     copyAll: "Copy all experts",
     copiedAll: "All experts copied",
     found: "experts formatted",
-    parseError: "No expert profile beginning with #1.1 - Name - … was found.",
+    parseError: "No expert profile beginning with #ID - Name - … was found.",
     employment: "Employment History",
     edit: "Edit",
     doneEditing: "Done editing",
@@ -1290,11 +1290,11 @@ const slackTranslations = {
   },
   ja: {
     title: "Slack Expert Formatter",
-    version: "v1.1",
+    version: "v1.2",
     subtitle: "複数のエキスパート情報を、Slackに貼り付けやすい形式へ整えます。",
     privacy: "入力内容はブラウザ内だけで処理され、アップロードや保存はされません。",
     inputTitle: "1. エキスパート情報を貼り付け",
-    inputHelp: "#1.1 - Name - … で始まる情報を、複数名まとめて貼り付けられます。",
+    inputHelp: "#1.1、#A-2など数字・英字の番号に対応し、複数名をまとめて貼り付けられます。",
     label: "エキスパート情報",
     placeholder: "ここにエキスパート情報を貼り付けてください…",
     generate: "Slack用に整形",
@@ -1307,7 +1307,7 @@ const slackTranslations = {
     copyAll: "全員をコピー",
     copiedAll: "全員をコピーしました",
     found: "名を整形",
-    parseError: "#1.1 - Name - … で始まるエキスパート情報が見つかりませんでした。",
+    parseError: "#番号 - Name - … で始まるエキスパート情報が見つかりませんでした。",
     employment: "Employment History",
     edit: "編集",
     doneEditing: "編集を完了",
@@ -1328,11 +1328,11 @@ const slackTranslations = {
   },
   zh: {
     title: "Slack Expert Formatter",
-    version: "v1.1",
+    version: "v1.2",
     subtitle: "将多位专家信息整理成可直接复制到 Slack 的格式。",
     privacy: "所有内容只在浏览器中处理，不会上传或保存。",
     inputTitle: "1. 粘贴专家信息",
-    inputHelp: "可以一次粘贴多位以 #1.1 - Name - … 开头的专家信息。",
+    inputHelp: "支持 #1.1、#A-2 等数字或字母编号，并可一次粘贴多位专家。",
     label: "专家信息",
     placeholder: "在这里粘贴专家信息…",
     generate: "生成 Slack 内容",
@@ -1345,7 +1345,7 @@ const slackTranslations = {
     copyAll: "复制全部专家",
     copiedAll: "已复制全部专家",
     found: "位专家已生成",
-    parseError: "没有找到以 #1.1 - Name - … 开头的专家信息。",
+    parseError: "没有找到以 #编号 - Name - … 开头的专家信息。",
     employment: "Employment History",
     edit: "编辑",
     doneEditing: "完成编辑",
