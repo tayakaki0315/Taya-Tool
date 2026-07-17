@@ -447,6 +447,118 @@ textarea:focus {
   flex: 0 0 auto;
 }
 
+.slack-toolbar-actions {
+  display: flex !important;
+  flex: 0 0 auto;
+  grid-auto-flow: column;
+  gap: 8px !important;
+}
+
+.slack-editor {
+  padding: 18px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, #8b5cf6 4%, var(--card));
+}
+
+.slack-editor-help {
+  margin: 0 0 15px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.slack-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 14px;
+}
+
+.slack-editor-header-grid {
+  margin-top: 0;
+}
+
+.slack-editor-wide {
+  grid-column: 1 / -1;
+}
+
+.slack-editor label,
+.slack-editor-field {
+  display: block;
+  min-width: 0;
+}
+
+.slack-editor label > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.slack-editor input,
+.slack-editor textarea {
+  width: 100%;
+  padding: 10px 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.slack-editor textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.slack-editor-field {
+  margin-top: 14px;
+}
+
+.slack-screening-heading-field {
+  max-width: 520px;
+}
+
+.slack-qa-editor {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.slack-qa-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.slack-qa-row-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  grid-column: 1 / -1;
+}
+
+.slack-qa-row-heading strong {
+  font-size: 11px;
+}
+
+.slack-qa-row-heading .text-danger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slack-qa-row textarea {
+  min-height: 105px;
+}
+
+.slack-add-qa {
+  justify-self: start;
+}
+
 .slack-preview {
   padding: 19px;
   color: var(--text);
@@ -2007,8 +2119,29 @@ footer {
     flex-direction: column;
   }
 
+  .slack-toolbar-actions {
+    display: grid !important;
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: initial;
+  }
+
   .slack-copy-button {
     width: 100%;
+  }
+
+  .slack-editor {
+    padding: 15px;
+  }
+
+  .slack-editor-grid,
+  .slack-qa-row {
+    grid-template-columns: 1fr;
+  }
+
+  .slack-editor-wide,
+  .slack-qa-row-heading {
+    grid-column: 1;
   }
 
   .slack-preview {
