@@ -467,23 +467,8 @@ textarea:focus {
   line-height: 1.55;
 }
 
-.slack-editor-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 13px;
-  margin-top: 14px;
-}
-
-.slack-editor-header-grid {
-  margin-top: 0;
-}
-
-.slack-editor-wide {
-  grid-column: 1 / -1;
-}
-
 .slack-editor label,
-.slack-editor-field {
+.slack-screening-editor label {
   display: block;
   min-width: 0;
 }
@@ -495,7 +480,6 @@ textarea:focus {
   font-weight: 750;
 }
 
-.slack-editor input,
 .slack-editor textarea {
   width: 100%;
   padding: 10px 11px;
@@ -505,58 +489,9 @@ textarea:focus {
 }
 
 .slack-editor textarea {
-  min-height: 112px;
+  min-height: 260px;
   resize: vertical;
-}
-
-.slack-editor-field {
-  margin-top: 14px;
-}
-
-.slack-screening-heading-field {
-  max-width: 520px;
-}
-
-.slack-qa-editor {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.slack-qa-row {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr);
-  gap: 11px;
-  padding: 13px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--card);
-}
-
-.slack-qa-row-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  grid-column: 1 / -1;
-}
-
-.slack-qa-row-heading strong {
-  font-size: 11px;
-}
-
-.slack-qa-row-heading .text-danger {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.slack-qa-row textarea {
-  min-height: 105px;
-}
-
-.slack-add-qa {
-  justify-self: start;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 .slack-preview {
@@ -600,15 +535,43 @@ textarea:focus {
   margin-bottom: 6px;
 }
 
-.slack-history ul,
 .slack-availability ul {
   margin: 0;
   padding-left: 22px;
 }
 
-.slack-history li,
 .slack-availability li {
   margin: 4px 0;
+}
+
+.slack-history-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.slack-history-box {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-soft);
+}
+
+.slack-history-date {
+  color: var(--green-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.slack-history-detail {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .slack-availability code {
@@ -2134,14 +2097,8 @@ footer {
     padding: 15px;
   }
 
-  .slack-editor-grid,
-  .slack-qa-row {
+  .slack-history-grid {
     grid-template-columns: 1fr;
-  }
-
-  .slack-editor-wide,
-  .slack-qa-row-heading {
-    grid-column: 1;
   }
 
   .slack-preview {
