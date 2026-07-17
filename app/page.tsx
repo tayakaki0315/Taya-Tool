@@ -35,9 +35,16 @@ type ExpertRecord = {
   warnings: string[];
 };
 
+type SlackQaItem = {
+  id: string;
+  question: string;
+  answer: string;
+};
+
 type SlackExpertRecord = ExpertRecord & {
   location: string;
   screeningLabel: string;
+  qaItems: SlackQaItem[];
 };
 
 const DATA_FIELDS = [
@@ -729,6 +736,36 @@ type ScreeningBoundary = {
   contentStart: number;
 };
 
+type ScreeningMarker = {
+  type: "question" | "answer";
+  markerIndex: number;
+  contentStart: number;
+};
+
+const SCREENING_MARKER_SOURCE = String.raw`(?:[\[【]\s*(?:Q(?:\d+)?\s*[.。:：)\-]?|A(?:\d+)?\s*[.。:：)\-]?|回答\s*[.。:：\-]?|→)\s*[\]】]|Q(?:\d+)?\s*[.。:：)\-]|A(?:\d+)?\s*[.。:：)\-]|回答\s*[:：]|→)`;
+
+function screeningMarkerRegex(global = false) {
+  return new RegExp(`(^|\\s)(${SCREENING_MARKER_SOURCE})`, global ? "gimu" : "imu");
+}
+
+function screeningMarkers(source: string) {
+  const markers: ScreeningMarker[] = [];
+  const regex = screeningMarkerRegex(true);
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(source)) !== null) {
+    const prefixLength = match[1]?.length ?? 0;
+    const marker = match[2];
+    const normalized = marker.replace(/[\[\]【】\s.。:：)\-]/g, "");
+    markers.push({
+      type: /^Q/i.test(normalized) ? "question" : "answer",
+      markerIndex: match.index + prefixLength,
+      contentStart: match.index + match[0].length,
+    });
+  }
+  return markers;
+}
+
 function findRoleDateEnd(source: string) {
   const roleDate = new RegExp(
     `\\((?:\\d{2}\\/\\d{4}|(?:${MONTHS})\\s+\\d{4})\\s*-\\s*(?:Present|\\d{2}\\/\\d{4}|(?:${MONTHS})\\s+\\d{4})\\)`,
@@ -756,21 +793,13 @@ function findScreeningBoundary(source: string): ScreeningBoundary | null {
     }
   });
 
-  const lineQuestion = /(?:^|\n)\s*(Q(?:\d+)?(?:\s*[).:\-]|\s+))/im.exec(source);
-  if (lineQuestion && lineQuestion.index !== undefined) {
-    const questionOffset = lineQuestion[0].indexOf(lineQuestion[1]);
+  const firstQuestion = screeningMarkers(source).find(
+    (marker) => marker.type === "question",
+  );
+  if (firstQuestion) {
     candidates.push({
-      markerIndex: lineQuestion.index + questionOffset,
-      contentStart: lineQuestion.index + questionOffset,
-    });
-  }
-
-  const inlineQuestion = /\s(Q(?:\d+)?\s*[).:\-])/i.exec(source);
-  if (inlineQuestion && inlineQuestion.index !== undefined) {
-    const questionOffset = inlineQuestion[0].indexOf(inlineQuestion[1]);
-    candidates.push({
-      markerIndex: inlineQuestion.index + questionOffset,
-      contentStart: inlineQuestion.index + questionOffset,
+      markerIndex: firstQuestion.markerIndex,
+      contentStart: firstQuestion.markerIndex,
     });
   }
 
@@ -1026,35 +1055,61 @@ function extractExpertLocation(block: string) {
   return location ? cleanText(location[1]) : "";
 }
 
-function formatSlackScreening(source: string) {
-  const lines = formatScreening(source)
-    .split("\n")
-    .map((line) => cleanText(line))
-    .filter(Boolean);
-  const output: string[] = [];
-  let questionNumber = 0;
+function parseSlackQaItems(source: string) {
+  const text = removeAvailabilityPlaceholder(source);
+  const markers = screeningMarkers(text);
+  const items: SlackQaItem[] = [];
 
-  lines.forEach((line) => {
-    const question = line.match(/^Q(?:\d+)?\s*[).:\-]\s*(.*)$/i);
-    const answer = line.match(/^A(?:\d+)?\s*[).:\-]\s*(.*)$/i);
-    if (question) {
-      if (output.length) output.push("");
-      questionNumber += 1;
-      output.push(`Q${questionNumber}) ${cleanText(question[1])}`);
+  if (!markers.length && text) {
+    return [
+      {
+        id: `qa-fallback-${Math.random().toString(36).slice(2, 8)}`,
+        question: "",
+        answer: text,
+      },
+    ];
+  }
+
+  markers.forEach((marker, index) => {
+    const nextMarker = markers[index + 1];
+    const content = cleanText(
+      text.slice(marker.contentStart, nextMarker?.markerIndex ?? text.length),
+    );
+    if (marker.type === "question") {
+      items.push({
+        id: `qa-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        question: content,
+        answer: "",
+      });
       return;
     }
-    if (answer) {
-      output.push(`A${Math.max(questionNumber, 1)}) ${cleanText(answer[1])}`);
+
+    if (!items.length) {
+      items.push({
+        id: `qa-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        question: "",
+        answer: content,
+      });
       return;
     }
-    if (output.length) {
-      output[output.length - 1] = cleanText(`${output[output.length - 1]} ${line}`);
-    } else {
-      output.push(line);
-    }
+    const latest = items[items.length - 1];
+    latest.answer = cleanText([latest.answer, content].filter(Boolean).join(" "));
   });
 
-  return output.join("\n").trim();
+  return items;
+}
+
+function formatSlackScreening(items: SlackQaItem[]) {
+  return items
+    .map((item, index) => {
+      const lines = [];
+      if (item.question) lines.push(`Q${index + 1}) ${cleanText(item.question)}`);
+      if (item.answer) lines.push(`A${index + 1}) ${cleanText(item.answer)}`);
+      return lines.join("\n");
+    })
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
 }
 
 function slackHistoryLines(source: string) {
@@ -1085,6 +1140,7 @@ function parseSlackExperts(raw: string) {
         ...record,
         location: extractExpertLocation(block),
         screeningLabel: extractScreeningLabel(block),
+        qaItems: parseSlackQaItems(record.screening),
       };
     })
     .filter((record): record is SlackExpertRecord => Boolean(record));
@@ -1096,7 +1152,7 @@ function formatSlackExpert(record: SlackExpertRecord) {
 
   if (record.introduction) parts.push(record.introduction);
 
-  const screening = formatSlackScreening(record.screening);
+  const screening = formatSlackScreening(record.qaItems);
   if (screening) {
     parts.push(`\`\`\`\n${record.screeningLabel}\n\n${screening}\n\`\`\``);
   }
@@ -1122,10 +1178,81 @@ function formatSlackExpert(record: SlackExpertRecord) {
   return parts.join("\n\n");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function slackHtmlText(value: string) {
+  return escapeHtml(value).replace(/\n/g, "<br>");
+}
+
+function formatSlackExpertHtml(record: SlackExpertRecord) {
+  const blocks: string[] = [];
+  blocks.push(
+    `<p><strong>${escapeHtml(`${record.number} - ${record.name} - ✅${record.title}`)}</strong></p>`,
+  );
+  if (record.introduction) {
+    blocks.push(`<p>${slackHtmlText(record.introduction)}</p>`);
+  }
+
+  const screening = formatSlackScreening(record.qaItems);
+  if (screening) {
+    blocks.push(
+      `<pre>${escapeHtml(`${record.screeningLabel}\n\n${screening}`)}</pre>`,
+    );
+  }
+
+  const history = slackHistoryLines(record.employmentHistory);
+  if (history.length) {
+    blocks.push(
+      `<p><strong>Employment History</strong></p><ul>${history
+        .map((line) => `<li>${escapeHtml(line)}</li>`)
+        .join("")}</ul>`,
+    );
+  }
+
+  const availability = slackAvailability(record);
+  if (availability.slots.length) {
+    blocks.push(
+      `<p><strong>${escapeHtml(availability.heading)}</strong></p><ul>${availability.slots
+        .map((slot) => `<li><code>${escapeHtml(slot)}</code></li>`)
+        .join("")}</ul>`,
+    );
+  }
+
+  if (record.location) {
+    blocks.push(`<p>${escapeHtml(`This specialist is based in ${record.location}.`)}</p>`);
+  }
+  if (record.fee) blocks.push(`<p><strong>${escapeHtml(record.fee)}</strong></p>`);
+  return `<div>${blocks.join("")}</div>`;
+}
+
+async function writeSlackClipboard(plainText: string, html: string) {
+  try {
+    if (navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/plain": new Blob([plainText], { type: "text/plain" }),
+          "text/html": new Blob([html], { type: "text/html" }),
+        }),
+      ]);
+      return;
+    }
+  } catch {
+    // Fall back to plain Slack markup when rich clipboard data is unavailable.
+  }
+  await navigator.clipboard.writeText(plainText);
+}
+
 const slackTranslations = {
   en: {
     title: "Slack Expert Formatter",
-    version: "v1.0",
+    version: "v1.1",
     subtitle: "Turn multiple expert profiles into clean, copy-ready Slack posts.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     inputTitle: "1. Paste expert profiles",
@@ -1144,10 +1271,26 @@ const slackTranslations = {
     found: "experts formatted",
     parseError: "No expert profile beginning with #1.1 - Name - … was found.",
     employment: "Employment History",
+    edit: "Edit",
+    doneEditing: "Done editing",
+    editHelp: "Review the detected fields and correct any question or answer before copying.",
+    number: "Number",
+    name: "Name",
+    titleField: "Title",
+    introduction: "Expert introduction",
+    screeningLabel: "Screening heading",
+    question: "Question",
+    answer: "Answer",
+    addQa: "Add Q&A",
+    removeQa: "Remove",
+    history: "Employment History",
+    availability: "Availability",
+    location: "Location",
+    fee: "Fee",
   },
   ja: {
     title: "Slack Expert Formatter",
-    version: "v1.0",
+    version: "v1.1",
     subtitle: "複数のエキスパート情報を、Slackに貼り付けやすい形式へ整えます。",
     privacy: "入力内容はブラウザ内だけで処理され、アップロードや保存はされません。",
     inputTitle: "1. エキスパート情報を貼り付け",
@@ -1166,10 +1309,26 @@ const slackTranslations = {
     found: "名を整形",
     parseError: "#1.1 - Name - … で始まるエキスパート情報が見つかりませんでした。",
     employment: "Employment History",
+    edit: "編集",
+    doneEditing: "編集を完了",
+    editHelp: "認識結果を確認し、コピー前に質問・回答や各項目を修正できます。",
+    number: "番号",
+    name: "名前",
+    titleField: "タイトル",
+    introduction: "エキスパート紹介",
+    screeningLabel: "Screening見出し",
+    question: "質問",
+    answer: "回答",
+    addQa: "Q&Aを追加",
+    removeQa: "削除",
+    history: "Employment History",
+    availability: "Availability",
+    location: "所在地",
+    fee: "Fee",
   },
   zh: {
     title: "Slack Expert Formatter",
-    version: "v1.0",
+    version: "v1.1",
     subtitle: "将多位专家信息整理成可直接复制到 Slack 的格式。",
     privacy: "所有内容只在浏览器中处理，不会上传或保存。",
     inputTitle: "1. 粘贴专家信息",
@@ -1188,6 +1347,22 @@ const slackTranslations = {
     found: "位专家已生成",
     parseError: "没有找到以 #1.1 - Name - … 开头的专家信息。",
     employment: "Employment History",
+    edit: "编辑",
+    doneEditing: "完成编辑",
+    editHelp: "请确认识别结果，复制前可以修改问题、答案及其他字段。",
+    number: "编号",
+    name: "姓名",
+    titleField: "Title",
+    introduction: "专家介绍",
+    screeningLabel: "Screening 标题",
+    question: "问题",
+    answer: "答案",
+    addQa: "添加 Q&A",
+    removeQa: "删除",
+    history: "Employment History",
+    availability: "Availability",
+    location: "所在地",
+    fee: "Fee",
   },
 } as const;
 
@@ -2028,6 +2203,7 @@ function SlackFormatterPanel({
   const [notice, setNotice] = useState("");
   const [noticeType, setNoticeType] = useState<"success" | "error" | "">("");
   const [copiedId, setCopiedId] = useState("");
+  const [editingId, setEditingId] = useState("");
 
   function generatePosts() {
     const parsed = parseSlackExperts(rawProfiles);
@@ -2051,10 +2227,14 @@ function SlackFormatterPanel({
     setNotice("");
     setNoticeType("");
     setCopiedId("");
+    setEditingId("");
   }
 
   async function copyExpert(expert: SlackExpertRecord) {
-    await navigator.clipboard.writeText(formatSlackExpert(expert));
+    await writeSlackClipboard(
+      formatSlackExpert(expert),
+      formatSlackExpertHtml(expert),
+    );
     setCopiedId(expert.id);
     window.setTimeout(() => setCopiedId(""), 1800);
   }
@@ -2063,9 +2243,73 @@ function SlackFormatterPanel({
     const combined = experts
       .map((expert) => formatSlackExpert(expert))
       .join("\n\n────────────────────\n\n");
-    await navigator.clipboard.writeText(combined);
+    const combinedHtml = experts
+      .map((expert) => formatSlackExpertHtml(expert))
+      .join('<hr style="margin:20px 0;border:0;border-top:1px solid #cccccc">');
+    await writeSlackClipboard(combined, `<div>${combinedHtml}</div>`);
     setCopiedId("all");
     window.setTimeout(() => setCopiedId(""), 1800);
+  }
+
+  function updateExpert(
+    expertId: string,
+    field: keyof Omit<SlackExpertRecord, "qaItems" | "warnings">,
+    value: string,
+  ) {
+    setExperts((current) =>
+      current.map((expert) =>
+        expert.id === expertId ? { ...expert, [field]: value } : expert,
+      ),
+    );
+  }
+
+  function updateQa(
+    expertId: string,
+    qaId: string,
+    field: "question" | "answer",
+    value: string,
+  ) {
+    setExperts((current) =>
+      current.map((expert) =>
+        expert.id === expertId
+          ? {
+              ...expert,
+              qaItems: expert.qaItems.map((item) =>
+                item.id === qaId ? { ...item, [field]: value } : item,
+              ),
+            }
+          : expert,
+      ),
+    );
+  }
+
+  function addQa(expertId: string) {
+    setExperts((current) =>
+      current.map((expert) =>
+        expert.id === expertId
+          ? {
+              ...expert,
+              qaItems: [
+                ...expert.qaItems,
+                { id: `qa-${Date.now()}`, question: "", answer: "" },
+              ],
+            }
+          : expert,
+      ),
+    );
+  }
+
+  function removeQa(expertId: string, qaId: string) {
+    setExperts((current) =>
+      current.map((expert) =>
+        expert.id === expertId
+          ? {
+              ...expert,
+              qaItems: expert.qaItems.filter((item) => item.id !== qaId),
+            }
+          : expert,
+      ),
+    );
   }
 
   return (
@@ -2174,9 +2418,10 @@ function SlackFormatterPanel({
           ) : (
             <div className="slack-expert-list">
               {experts.map((expert) => {
-                const screening = formatSlackScreening(expert.screening);
+                const screening = formatSlackScreening(expert.qaItems);
                 const history = slackHistoryLines(expert.employmentHistory);
                 const availability = slackAvailability(expert);
+                const isEditing = editingId === expert.id;
                 return (
                   <article className="slack-expert-card" key={expert.id}>
                     <div className="slack-expert-toolbar">
@@ -2184,14 +2429,136 @@ function SlackFormatterPanel({
                         <strong>{expert.number} · {expert.name}</strong>
                         <small>{expert.company}</small>
                       </div>
-                      <button
-                        className="button button-primary slack-copy-button"
-                        type="button"
-                        onClick={() => copyExpert(expert)}
-                      >
-                        {copiedId === expert.id ? t.copied : t.copy}
-                      </button>
+                      <div className="slack-toolbar-actions">
+                        <button
+                          className="button button-muted"
+                          type="button"
+                          onClick={() => setEditingId(isEditing ? "" : expert.id)}
+                        >
+                          {isEditing ? t.doneEditing : t.edit}
+                        </button>
+                        <button
+                          className="button button-primary slack-copy-button"
+                          type="button"
+                          onClick={() => copyExpert(expert)}
+                        >
+                          {copiedId === expert.id ? t.copied : t.copy}
+                        </button>
+                      </div>
                     </div>
+                    {isEditing && (
+                      <div className="slack-editor">
+                        <p className="slack-editor-help">{t.editHelp}</p>
+                        <div className="slack-editor-grid slack-editor-header-grid">
+                          <label>
+                            <span>{t.number}</span>
+                            <input
+                              value={expert.number}
+                              onChange={(event) => updateExpert(expert.id, "number", event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <span>{t.name}</span>
+                            <input
+                              value={expert.name}
+                              onChange={(event) => updateExpert(expert.id, "name", event.target.value)}
+                            />
+                          </label>
+                          <label className="slack-editor-wide">
+                            <span>{t.titleField}</span>
+                            <input
+                              value={expert.title}
+                              onChange={(event) => updateExpert(expert.id, "title", event.target.value)}
+                            />
+                          </label>
+                        </div>
+
+                        <label className="slack-editor-field">
+                          <span>{t.introduction}</span>
+                          <textarea
+                            value={expert.introduction}
+                            onChange={(event) => updateExpert(expert.id, "introduction", event.target.value)}
+                          />
+                        </label>
+
+                        <label className="slack-editor-field slack-screening-heading-field">
+                          <span>{t.screeningLabel}</span>
+                          <input
+                            value={expert.screeningLabel}
+                            onChange={(event) => updateExpert(expert.id, "screeningLabel", event.target.value)}
+                          />
+                        </label>
+
+                        <div className="slack-qa-editor">
+                          {expert.qaItems.map((item, index) => (
+                            <div className="slack-qa-row" key={item.id}>
+                              <div className="slack-qa-row-heading">
+                                <strong>Q&amp;A {index + 1}</strong>
+                                <button
+                                  className="text-danger"
+                                  type="button"
+                                  onClick={() => removeQa(expert.id, item.id)}
+                                >
+                                  {t.removeQa}
+                                </button>
+                              </div>
+                              <label>
+                                <span>{t.question}</span>
+                                <textarea
+                                  value={item.question}
+                                  onChange={(event) => updateQa(expert.id, item.id, "question", event.target.value)}
+                                />
+                              </label>
+                              <label>
+                                <span>{t.answer}</span>
+                                <textarea
+                                  value={item.answer}
+                                  onChange={(event) => updateQa(expert.id, item.id, "answer", event.target.value)}
+                                />
+                              </label>
+                            </div>
+                          ))}
+                          <button
+                            className="button button-muted slack-add-qa"
+                            type="button"
+                            onClick={() => addQa(expert.id)}
+                          >
+                            ＋ {t.addQa}
+                          </button>
+                        </div>
+
+                        <div className="slack-editor-grid">
+                          <label>
+                            <span>{t.history}</span>
+                            <textarea
+                              value={expert.employmentHistory}
+                              onChange={(event) => updateExpert(expert.id, "employmentHistory", event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <span>{t.availability}</span>
+                            <textarea
+                              value={expert.availability}
+                              onChange={(event) => updateExpert(expert.id, "availability", event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <span>{t.location}</span>
+                            <input
+                              value={expert.location}
+                              onChange={(event) => updateExpert(expert.id, "location", event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            <span>{t.fee}</span>
+                            <input
+                              value={expert.fee}
+                              onChange={(event) => updateExpert(expert.id, "fee", event.target.value)}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    )}
                     <div className="slack-preview">
                       <p className="slack-headline">
                         <strong>{expert.number} - {expert.name} - ✅{expert.title}</strong>
