@@ -480,6 +480,7 @@ textarea:focus {
   font-weight: 750;
 }
 
+.slack-editor input,
 .slack-editor textarea {
   width: 100%;
   padding: 10px 11px;
@@ -489,9 +490,50 @@ textarea:focus {
 }
 
 .slack-editor textarea {
-  min-height: 260px;
+  min-height: 150px;
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.slack-edit-section {
+  overflow: hidden;
+  margin-top: 9px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.slack-edit-section summary {
+  padding: 11px 13px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  list-style-position: inside;
+  user-select: none;
+}
+
+.slack-edit-section[open] summary {
+  border-bottom: 1px solid var(--border);
+  color: var(--blue);
+  background: var(--card-soft);
+}
+
+.slack-edit-section-body {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+}
+
+.slack-edit-section:first-of-type textarea {
+  min-height: 260px;
+}
+
+.slack-edit-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.slack-edit-wide {
+  grid-column: 1 / -1;
 }
 
 .slack-preview {
@@ -2099,6 +2141,14 @@ footer {
 
   .slack-history-grid {
     grid-template-columns: 1fr;
+  }
+
+  .slack-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .slack-edit-wide {
+    grid-column: 1;
   }
 
   .slack-preview {
