@@ -32,6 +32,7 @@ type ExpertRecord = {
   fee: string;
   availability: string;
   sheetName: string;
+  sheetNames?: string[];
   warnings: string[];
 };
 
@@ -130,9 +131,6 @@ const NAVI_MAX_HISTORY = 10;
 const NAVI_HISTORY_KEY = "tayaHistory_v34";
 const GLOBAL_LANGUAGE_KEY = "tayaGlobalLanguageV1";
 const GLOBAL_LANGUAGES: NaviLanguage[] = ["en", "ja", "zh_cn", "zh_tw", "mn"];
-const EXPERT_ACCESS_KEY = "tayaExpertUnlockedV1";
-const EXPERT_PASSWORD_HASH =
-  "cfe0042d5ff7f0bba1453855ef82ab6074985b68f0a86e2ffbb4313ea52d33ef";
 
 const MONTHS =
   "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December";
@@ -142,7 +140,7 @@ const WEEKDAYS =
 const translations = {
   ja: {
     title: "Taya Expert List Builder",
-    version: "v1.7",
+    version: "v1.8",
     subtitle: "エキスパート情報を貼り付け、Excel リストをすぐに作成できます。",
     privacy: "入力内容はブラウザ内だけで処理され、サーバーへ送信・保存されません。",
     modeCreate: "新しいExcelを作成",
@@ -190,15 +188,20 @@ const translations = {
     sheetModePerExpert: "1名につき1つのSheetを作る",
     sheetModeCustom: "Sheetを自由に分ける（ドラッグ）",
     singleSheetName: "Sheet名",
-    customSheetHelp: "Sheet管理画面を開き、エキスパートをドラッグして自由に分けられます。",
+    customSheetHelp: "各Sheetと所属エキスパートを下に直接表示します。同じエキスパートを複数のSheetへコピーできます。",
     perExpertSheetHelp: "番号と名前を使って、エキスパートごとにSheetを作成します。",
     openSheetOrganizer: "Sheet管理画面を開く",
     organizerTitle: "Sheetを自由に分ける",
-    organizerHelp: "Sheetを追加・変更し、エキスパートカードを希望のSheetへドラッグしてください。",
+    organizerHelp: "エキスパートをドラッグすると別のSheetへ移動します。複数のangleで使う場合は、コピー欄から追加してください。",
     newSheetPlaceholder: "新しいSheet名",
     addSheet: "Sheetを追加",
-    emptySheet: "ここにエキスパートをドロップ",
+    emptySheet: "まだエキスパートはいません",
     dragHint: "ドラッグして移動",
+    copyAction: "コピー",
+    copyToSheet: "コピー先Sheet",
+    copyExpert: "このSheetにエキスパートをコピー",
+    selectExpert: "エキスパートを選択…",
+    removeFromSheet: "このSheetから外す",
     deleteSheet: "空のSheetを削除",
     done: "完了",
     exportTitle: "3. Excel を作成",
@@ -236,7 +239,7 @@ const translations = {
   },
   en: {
     title: "Taya Expert List Builder",
-    version: "v1.7",
+    version: "v1.8",
     subtitle: "Paste expert profiles and turn them into a client-ready Excel list.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     modeCreate: "Create a new Excel",
@@ -284,15 +287,20 @@ const translations = {
     sheetModePerExpert: "Create one sheet per expert",
     sheetModeCustom: "Arrange sheets freely (drag and drop)",
     singleSheetName: "Sheet name",
-    customSheetHelp: "Open the sheet organizer and drag experts into any sheet.",
+    customSheetHelp: "See every sheet and its experts below. An expert can be copied to more than one sheet.",
     perExpertSheetHelp: "A separate sheet will be created for each expert using their number and name.",
     openSheetOrganizer: "Open sheet organizer",
     organizerTitle: "Arrange sheets freely",
-    organizerHelp: "Add or rename sheets, then drag each expert card into the destination sheet.",
+    organizerHelp: "Drag an expert to move it to another sheet. Use the copy field when the same expert is needed in multiple angles.",
     newSheetPlaceholder: "New sheet name",
     addSheet: "Add sheet",
-    emptySheet: "Drop experts here",
+    emptySheet: "No experts in this sheet yet",
     dragHint: "Drag to move",
+    copyAction: "Copy",
+    copyToSheet: "Copy to sheet",
+    copyExpert: "Copy an expert to this sheet",
+    selectExpert: "Select an expert…",
+    removeFromSheet: "Remove from this sheet",
     deleteSheet: "Delete empty sheet",
     done: "Done",
     exportTitle: "3. Create Excel",
@@ -329,7 +337,7 @@ const translations = {
   },
   zh: {
     title: "Taya Expert List Builder",
-    version: "v1.7",
+    version: "v1.8",
     subtitle: "粘贴专家资料，一键整理并生成客户用 Excel 名单。",
     privacy: "所有内容仅在浏览器内处理，不会上传或保存到服务器。",
     modeCreate: "创建新的Excel",
@@ -376,15 +384,20 @@ const translations = {
     sheetModePerExpert: "每位专家单独一个Sheet",
     sheetModeCustom: "自由安排Sheet（拖拽）",
     singleSheetName: "Sheet名称",
-    customSheetHelp: "打开Sheet管理窗口，把专家拖到想要的Sheet中。",
+    customSheetHelp: "下方会直接显示每个Sheet及其中的专家。同一位专家可以复制到多个Sheet。",
     perExpertSheetHelp: "系统会使用编号和姓名，为每位专家建立单独的Sheet。",
     openSheetOrganizer: "打开Sheet管理窗口",
     organizerTitle: "自由安排Sheet",
-    organizerHelp: "新增或修改Sheet，然后把专家卡片拖到目标Sheet中。",
+    organizerHelp: "拖拽专家会将其移动到另一个Sheet。同一位专家需要用于多个angle时，请使用复制选项。",
     newSheetPlaceholder: "新的Sheet名称",
     addSheet: "新增Sheet",
-    emptySheet: "把专家拖到这里",
+    emptySheet: "这个Sheet中还没有专家",
     dragHint: "拖拽移动",
+    copyAction: "复制",
+    copyToSheet: "复制到Sheet",
+    copyExpert: "复制专家到这个Sheet",
+    selectExpert: "选择专家……",
+    removeFromSheet: "从这个Sheet移除",
     deleteSheet: "删除空Sheet",
     done: "完成",
     exportTitle: "3. 生成 Excel",
@@ -1033,6 +1046,7 @@ function parseExpert(block: string, index: number): ExpertRecord | null {
     fee,
     availability,
     sheetName: "Expert List",
+    sheetNames: ["Expert List"],
     warnings,
   };
 }
@@ -1186,10 +1200,8 @@ function parseSlackExperts(raw: string) {
     .filter((record): record is SlackExpertRecord => Boolean(record));
 }
 
-function formatSlackExpert(record: SlackExpertRecord) {
+function formatSlackExpertBody(record: SlackExpertRecord) {
   const parts: string[] = [];
-  parts.push(`*${record.number} - ${record.name} - ✅${record.title}*`);
-
   if (record.introduction) parts.push(record.introduction);
 
   const screening = record.screeningText.trim();
@@ -1222,6 +1234,32 @@ function formatSlackExpert(record: SlackExpertRecord) {
   return parts.join("\n\n");
 }
 
+function formatSlackExpert(record: SlackExpertRecord) {
+  return [
+    `*${record.number} - ${record.name} - ✅${record.title}*`,
+    formatSlackExpertBody(record),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function formatSlackExpertForCombinedCopy(record: SlackExpertRecord) {
+  const body = formatSlackExpertBody(record);
+  const quotedBody = body
+    ? body
+        .split("\n")
+        .map((line) => (line ? `> ${line}` : ">"))
+        .join("\n")
+    : "";
+
+  return [
+    `*${record.number} - ${record.name} - ✅${record.title}*`,
+    quotedBody,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -1235,11 +1273,8 @@ function slackHtmlText(value: string) {
   return escapeHtml(value).replace(/\n/g, "<br>");
 }
 
-function formatSlackExpertHtml(record: SlackExpertRecord) {
+function formatSlackExpertBodyHtml(record: SlackExpertRecord) {
   const blocks: string[] = [];
-  blocks.push(
-    `<p><strong>${escapeHtml(`${record.number} - ${record.name} - ✅${record.title}`)}</strong></p>`,
-  );
   if (record.introduction) {
     blocks.push(`<p>${slackHtmlText(record.introduction)}</p>`);
   }
@@ -1277,7 +1312,38 @@ function formatSlackExpertHtml(record: SlackExpertRecord) {
     blocks.push(`<p>${escapeHtml(`This specialist is based in ${record.location}.`)}</p>`);
   }
   if (record.fee) blocks.push(`<p><strong>${escapeHtml(record.fee)}</strong></p>`);
-  return `<div>${blocks.join("")}</div>`;
+  return blocks.join("");
+}
+
+function formatSlackExpertHtml(record: SlackExpertRecord) {
+  const header = `<p><strong>${escapeHtml(`${record.number} - ${record.name} - ✅${record.title}`)}</strong></p>`;
+  return `<div>${header}${formatSlackExpertBodyHtml(record)}</div>`;
+}
+
+function formatSlackExpertHtmlForCombinedCopy(record: SlackExpertRecord) {
+  const header = `<p><strong>${escapeHtml(`${record.number} - ${record.name} - ✅${record.title}`)}</strong></p>`;
+  const body = formatSlackExpertBodyHtml(record);
+  return `<div>${header}${body ? `<blockquote>${body}</blockquote>` : ""}</div>`;
+}
+
+function formatSlackExpertList(records: SlackExpertRecord[]) {
+  return [
+    "*Expert List*",
+    "",
+    ...records.map(
+      (record) =>
+        `• *${record.number} - ${record.name}* - ✅${record.title}`,
+    ),
+  ].join("\n");
+}
+
+function formatSlackExpertListHtml(records: SlackExpertRecord[]) {
+  return `<div><p><strong>Expert List</strong></p><ul>${records
+    .map(
+      (record) =>
+        `<li><strong>${escapeHtml(`${record.number} - ${record.name}`)}</strong> - ${escapeHtml(`✅${record.title}`)}</li>`,
+    )
+    .join("")}</ul></div>`;
 }
 
 async function writeSlackClipboard(plainText: string, html: string) {
@@ -1300,7 +1366,7 @@ async function writeSlackClipboard(plainText: string, html: string) {
 const slackTranslations = {
   en: {
     title: "Slack Expert Formatter",
-    version: "v1.4",
+    version: "v1.6",
     subtitle: "Turn multiple expert profiles into clean, copy-ready Slack posts.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     inputTitle: "1. Paste expert profiles",
@@ -1310,12 +1376,14 @@ const slackTranslations = {
     generate: "Create Slack posts",
     clear: "Clear all",
     results: "2. Copy to Slack",
-    resultsHelp: "Each expert is formatted separately. Copy one post or all posts at once.",
+    resultsHelp: "Copy a short Expert List for the top of a Canvas. Copy all experts adds a quote bar to each expert's details.",
     empty: "Your Slack-ready expert posts will appear here.",
     copy: "Copy for Slack",
     copied: "Copied",
     copyAll: "Copy all experts",
     copiedAll: "All experts copied",
+    copyExpertList: "Copy expert list",
+    copiedExpertList: "Expert list copied",
     found: "experts formatted",
     parseError: "No expert profile beginning with #ID - Name - … was found.",
     employment: "Employment History",
@@ -1343,7 +1411,7 @@ const slackTranslations = {
   },
   ja: {
     title: "Slack Expert Formatter",
-    version: "v1.4",
+    version: "v1.6",
     subtitle: "複数のエキスパート情報を、Slackに貼り付けやすい形式へ整えます。",
     privacy: "入力内容はブラウザ内だけで処理され、アップロードや保存はされません。",
     inputTitle: "1. エキスパート情報を貼り付け",
@@ -1353,12 +1421,14 @@ const slackTranslations = {
     generate: "Slack用に整形",
     clear: "すべてクリア",
     results: "2. Slackへコピー",
-    resultsHelp: "エキスパートごとに個別コピー、または全員をまとめてコピーできます。",
+    resultsHelp: "Canvas冒頭用のExpert Listをコピーできます。全員コピーでは、各エキスパートの詳細を引用バーで区切ります。",
     empty: "整形したSlack投稿がここに表示されます。",
     copy: "Slack用にコピー",
     copied: "コピーしました",
     copyAll: "全員をコピー",
     copiedAll: "全員をコピーしました",
+    copyExpertList: "Expert Listをコピー",
+    copiedExpertList: "Expert Listをコピーしました",
     found: "名を整形",
     parseError: "#番号 - Name - … で始まるエキスパート情報が見つかりませんでした。",
     employment: "Employment History",
@@ -1386,7 +1456,7 @@ const slackTranslations = {
   },
   zh: {
     title: "Slack Expert Formatter",
-    version: "v1.4",
+    version: "v1.6",
     subtitle: "将多位专家信息整理成可直接复制到 Slack 的格式。",
     privacy: "所有内容只在浏览器中处理，不会上传或保存。",
     inputTitle: "1. 粘贴专家信息",
@@ -1396,12 +1466,14 @@ const slackTranslations = {
     generate: "生成 Slack 内容",
     clear: "全部清除",
     results: "2. 复制到 Slack",
-    resultsHelp: "每位专家独立生成，可以单独复制，也可以一次复制全部。",
+    resultsHelp: "可以复制适合放在Canvas开头的Expert List；复制全部专家时，每位专家的详情会显示独立引用栏。",
     empty: "生成后的 Slack 内容会显示在这里。",
     copy: "复制到 Slack",
     copied: "已复制",
     copyAll: "复制全部专家",
     copiedAll: "已复制全部专家",
+    copyExpertList: "复制专家名单",
+    copiedExpertList: "专家名单已复制",
     found: "位专家已生成",
     parseError: "没有找到以 #编号 - Name - … 开头的专家信息。",
     employment: "Employment History",
@@ -1471,7 +1543,10 @@ function compareWithExisting(
   defaultSheetName: string,
 ) {
   const usedExistingIds = new Set<string>();
-  const mergedRecords = existingRecords.map((record) => ({ ...record }));
+  const mergedRecords = existingRecords.map((record) => ({
+    ...record,
+    sheetNames: getRecordSheetNames(record),
+  }));
   const comparisons: ComparisonItem[] = [];
 
   latestRecords.forEach((latest) => {
@@ -1480,6 +1555,7 @@ function compareWithExisting(
       const newRecord = {
         ...latest,
         sheetName: defaultSheetName || "Expert List",
+        sheetNames: [defaultSheetName || "Expert List"],
       };
       newRecord.warnings = calculateWarnings(newRecord);
       mergedRecords.push(newRecord);
@@ -1517,7 +1593,11 @@ function compareWithExisting(
     comparisons.push({
       id: `comparison-${latest.id}`,
       status: changes.length ? "changed" : "unchanged",
-      latest: { ...latest, sheetName: match.record.sheetName },
+      latest: {
+        ...latest,
+        sheetName: match.record.sheetName,
+        sheetNames: getRecordSheetNames(match.record),
+      },
       existingId: match.record.id,
       changes,
       matchedBy: match.matchedBy,
@@ -1559,10 +1639,52 @@ function uniqueSheetName(value: string, used: Set<string>) {
   return candidate;
 }
 
+function getRecordSheetNames(record: ExpertRecord) {
+  const names = (record.sheetNames?.length
+    ? record.sheetNames
+    : [record.sheetName || "Expert List"]
+  )
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return [...new Set(names.length ? names : ["Expert List"])];
+}
+
+function consolidateImportedRecords(records: ExpertRecord[]) {
+  const consolidated: ExpertRecord[] = [];
+
+  records.forEach((record) => {
+    const recordNameKey = personKey(record.name);
+    const recordCompanyKey = companyKey(record.company);
+    const match = consolidated.find(
+      (candidate) =>
+        (record.stableId && candidate.stableId === record.stableId) ||
+        (recordNameKey &&
+          recordCompanyKey &&
+          personKey(candidate.name) === recordNameKey &&
+          companyKey(candidate.company) === recordCompanyKey),
+    );
+    if (!match) {
+      consolidated.push({
+        ...record,
+        sheetNames: getRecordSheetNames(record),
+      });
+      return;
+    }
+
+    match.sheetNames = [
+      ...new Set([...getRecordSheetNames(match), ...getRecordSheetNames(record)]),
+    ];
+    match.sheetName = match.sheetNames[0] || match.sheetName;
+  });
+
+  return consolidated;
+}
+
 function groupRecordsForSheets(
   records: ExpertRecord[],
   sheetMode: SheetMode,
   singleSheetName: string,
+  customSheets: string[] = [],
 ) {
   if (sheetMode === "single") {
     return [{ name: singleSheetName || "Expert List", records }];
@@ -1576,14 +1698,18 @@ function groupRecordsForSheets(
   }
 
   const grouped = new Map<string, ExpertRecord[]>();
+  customSheets.forEach((name) => grouped.set(name, []));
   records.forEach((record) => {
-    const name = record.sheetName.trim() || "Expert List";
-    grouped.set(name, [...(grouped.get(name) ?? []), record]);
+    getRecordSheetNames(record).forEach((name) => {
+      grouped.set(name, [...(grouped.get(name) ?? []), record]);
+    });
   });
-  return [...grouped.entries()].map(([name, groupedRecords]) => ({
-    name,
-    records: groupedRecords,
-  }));
+  return [...grouped.entries()]
+    .filter(([, groupedRecords]) => groupedRecords.length > 0)
+    .map(([name, groupedRecords]) => ({
+      name,
+      records: groupedRecords,
+    }));
 }
 
 function estimatedRowHeight(values: string[]) {
@@ -1597,8 +1723,14 @@ function finalRecordChanges(
 ): UpdateSummaryChange[] {
   const fields = [...DATA_FIELDS, "sheetName"] as const;
   return fields.flatMap((field) => {
-    const oldValue = oldRecord[field];
-    const newValue = finalRecord[field];
+    const oldValue =
+      field === "sheetName"
+        ? getRecordSheetNames(oldRecord).join(" / ")
+        : oldRecord[field];
+    const newValue =
+      field === "sheetName"
+        ? getRecordSheetNames(finalRecord).join(" / ")
+        : finalRecord[field];
     if (comparableText(oldValue) === comparableText(newValue)) return [];
     return [{ field, oldValue, newValue }];
   });
@@ -1760,14 +1892,6 @@ function createNaviGroup(value = "") {
   };
 }
 
-async function hashPassword(value: string) {
-  const data = new TextEncoder().encode(value);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 function ToolSwitcher({
   active,
   onSelect,
@@ -1780,6 +1904,7 @@ function ToolSwitcher({
       <button
         className={active === "excel" ? "is-active" : ""}
         type="button"
+        title="Expert Excel"
         onClick={() => onSelect("excel")}
       >
         <span className="tool-switcher-icon excel">XL</span>
@@ -1791,6 +1916,7 @@ function ToolSwitcher({
       <button
         className={active === "slack" ? "is-active" : ""}
         type="button"
+        title="Slack Formatter"
         onClick={() => onSelect("slack")}
       >
         <span className="tool-switcher-icon slack">SL</span>
@@ -1802,6 +1928,7 @@ function ToolSwitcher({
       <button
         className={active === "navi" ? "is-active" : ""}
         type="button"
+        title="LinkedIn Search"
         onClick={() => onSelect("navi")}
       >
         <span className="tool-switcher-icon search">⌕</span>
@@ -1814,100 +1941,1667 @@ function ToolSwitcher({
   );
 }
 
-function ExpertPasswordGate({
-  active,
-  theme,
-  password,
-  error,
-  checking,
-  onPasswordChange,
-  onSubmit,
-  onToggleTheme,
-  onSelectTool,
-}: {
-  active: Exclude<ToolView, "navi">;
-  theme: "light" | "dark";
-  password: string;
-  error: string;
-  checking: boolean;
-  onPasswordChange: (value: string) => void;
-  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-  onToggleTheme: () => void;
-  onSelectTool: (tool: ToolView) => void;
-}) {
-  const [showPassword, setShowPassword] = useState(false);
+type BreakBubble = {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  tone: "mint" | "blue" | "violet" | "peach";
+  delay: number;
+};
+
+type BreakGameKind =
+  | "bubbles"
+  | "odd"
+  | "numbers"
+  | "memory"
+  | "runner"
+  | "snake"
+  | "flappy"
+  | "breakout"
+  | "stack";
+
+type MemoryCard = {
+  id: number;
+  symbol: string;
+};
+
+const BREAK_BUBBLES: BreakBubble[] = [
+  { id: 1, x: 8, y: 14, size: 46, tone: "mint", delay: 0 },
+  { id: 2, x: 35, y: 8, size: 58, tone: "blue", delay: 0.35 },
+  { id: 3, x: 70, y: 13, size: 40, tone: "peach", delay: 0.7 },
+  { id: 4, x: 19, y: 43, size: 36, tone: "violet", delay: 0.5 },
+  { id: 5, x: 51, y: 38, size: 48, tone: "mint", delay: 0.15 },
+  { id: 6, x: 79, y: 48, size: 52, tone: "blue", delay: 0.9 },
+  { id: 7, x: 5, y: 72, size: 54, tone: "peach", delay: 1.05 },
+  { id: 8, x: 39, y: 72, size: 38, tone: "violet", delay: 0.25 },
+  { id: 9, x: 66, y: 76, size: 45, tone: "mint", delay: 0.65 },
+];
+
+const MEMORY_SYMBOLS = ["✦", "☁", "❋"];
+const RUNNER_BEST_KEY = "tayaRunnerBestMsV1";
+
+function shuffled<T>(items: T[]) {
+  const next = [...items];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
+}
+
+function createMemoryCards(): MemoryCard[] {
+  return shuffled([...MEMORY_SYMBOLS, ...MEMORY_SYMBOLS]).map((symbol, id) => ({ id, symbol }));
+}
+
+function randomBreakIndex(length: number) {
+  return Math.floor(Math.random() * length);
+}
+
+type BreakQuiz = {
+  prompt: string;
+  answer: number;
+};
+
+function createBreakQuiz(): BreakQuiz {
+  const quizKind = randomBreakIndex(3);
+
+  if (quizKind === 0) {
+    const first = randomBreakIndex(15) + 3;
+    const second = randomBreakIndex(12) + 2;
+    return { prompt: `${first} + ${second}`, answer: first + second };
+  }
+
+  if (quizKind === 1) {
+    const second = randomBreakIndex(10) + 2;
+    const answer = randomBreakIndex(13) + 2;
+    return { prompt: `${answer + second} − ${second}`, answer };
+  }
+
+  const first = randomBreakIndex(8) + 2;
+  const second = randomBreakIndex(8) + 2;
+  return { prompt: `${first} × ${second}`, answer: first * second };
+}
+
+type RunnerState = {
+  status: "ready" | "running" | "over";
+  elapsed: number;
+  playerY: number;
+  velocity: number;
+  obstacleX: number;
+  speed: number;
+  passed: number;
+};
+
+type RunnerCopy = {
+  start: string;
+  jump: string;
+  startButton: string;
+  jumpButton: string;
+  gameOver: string;
+  time: string;
+  best: string;
+  restart: string;
+};
+
+const INITIAL_RUNNER: RunnerState = {
+  status: "ready",
+  elapsed: 0,
+  playerY: 0,
+  velocity: 0,
+  obstacleX: 112,
+  speed: 37,
+  passed: 0,
+};
+
+function formatRunnerTime(milliseconds: number) {
+  return `${(milliseconds / 1000).toFixed(1)}s`;
+}
+
+function jumpRunner(current: RunnerState): RunnerState {
+  if (current.status !== "running" || current.playerY > 1) return current;
+  return { ...current, velocity: 230 };
+}
+
+function TayaRunner({ copy }: { copy: RunnerCopy }) {
+  const [runner, setRunner] = useState<RunnerState>(INITIAL_RUNNER);
+  const [bestTime, setBestTime] = useState(0);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(RUNNER_BEST_KEY) || 0);
+    const timer = window.setTimeout(() => setBestTime(Number.isFinite(saved) ? saved : 0), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (runner.status !== "running") return;
+    let animationFrame = 0;
+    let previousTime = window.performance.now();
+
+    function tick(now: number) {
+      const delta = Math.min((now - previousTime) / 1000, 0.034);
+      previousTime = now;
+      setRunner((current) => {
+        if (current.status !== "running") return current;
+
+        const playerY = Math.max(0, current.playerY + current.velocity * delta);
+        let velocity = current.velocity - 420 * delta;
+        if (playerY === 0 && velocity < 0) velocity = 0;
+
+        let obstacleX = current.obstacleX - current.speed * delta;
+        let passed = current.passed;
+        let speed = Math.min(78, current.speed + delta * 1.15);
+        if (obstacleX < -10) {
+          obstacleX = 104 + randomBreakIndex(18);
+          passed += 1;
+          speed = Math.min(78, speed + 1.8);
+        }
+
+        const collided = obstacleX < 23 && obstacleX > 8 && playerY < 20;
+        return {
+          status: collided ? "over" : "running",
+          elapsed: current.elapsed + delta * 1000,
+          playerY,
+          velocity,
+          obstacleX,
+          speed,
+          passed,
+        };
+      });
+      animationFrame = window.requestAnimationFrame(tick);
+    }
+
+    animationFrame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [runner.status]);
+
+  useEffect(() => {
+    if (runner.status !== "over" || runner.elapsed <= bestTime) return;
+    const nextBest = runner.elapsed;
+    window.localStorage.setItem(RUNNER_BEST_KEY, String(nextBest));
+    const timer = window.setTimeout(() => setBestTime(nextBest), 0);
+    return () => window.clearTimeout(timer);
+  }, [bestTime, runner.elapsed, runner.status]);
+
+  useEffect(() => {
+    if (runner.status !== "running") return;
+    function jumpFromKeyboard(event: KeyboardEvent) {
+      if (event.code !== "Space" && event.code !== "ArrowUp") return;
+      event.preventDefault();
+      setRunner((current) => jumpRunner(current));
+    }
+    window.addEventListener("keydown", jumpFromKeyboard);
+    return () => window.removeEventListener("keydown", jumpFromKeyboard);
+  }, [runner.status]);
+
+  function startRunner() {
+    setRunner({ ...INITIAL_RUNNER, status: "running" });
+  }
+
+  function handleRunnerAction() {
+    if (runner.status === "ready" || runner.status === "over") {
+      startRunner();
+      return;
+    }
+    setRunner((current) => jumpRunner(current));
+  }
 
   return (
-    <main className="app-shell access-shell">
-      <div className="container access-container">
-        <header className="topbar">
-          <div>
-            <div className="eyebrow">TAYA TOOL</div>
-            <h1>
-              Expert Tools <span>Testing access</span>
-            </h1>
-            <p className="subtitle">
-              Expert Excel and Slack Formatter are currently limited to approved testers.
-            </p>
-          </div>
-          <div className="controls">
-            <button
-              className="theme-toggle"
-              type="button"
-              onClick={onToggleTheme}
-              aria-label="Toggle theme"
-            >
-              {theme === "light" ? "🌙" : "☀️"}
+    <div className="taya-runner-shell">
+      <button
+        className={`taya-runner-stage is-${runner.status}`}
+        type="button"
+        aria-label={runner.status === "running" ? copy.jump : copy.start}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          handleRunnerAction();
+        }}
+        onClick={(event) => {
+          if (event.detail === 0) handleRunnerAction();
+        }}
+      >
+        <span className="taya-runner-hud">
+          <span>{copy.time} <strong>{formatRunnerTime(runner.elapsed)}</strong></span>
+          <span>{copy.best} <strong>{formatRunnerTime(bestTime)}</strong></span>
+        </span>
+        <span className="taya-runner-cloud cloud-one" aria-hidden="true">●●</span>
+        <span className="taya-runner-cloud cloud-two" aria-hidden="true">●●●</span>
+        <span className="taya-runner-ground" aria-hidden="true" />
+        <span
+          className="taya-runner-player"
+          style={{ transform: `translate3d(0, -${runner.playerY}px, 0)` }}
+          aria-hidden="true"
+        >
+          T
+        </span>
+        <span className="taya-runner-obstacle" style={{ left: `${runner.obstacleX}%` }} aria-hidden="true">
+          <span />
+        </span>
+        {runner.status !== "running" && (
+          <span className="taya-runner-overlay">
+            <strong>{runner.status === "over" ? copy.gameOver : "TAYA RUNNER"}</strong>
+            {runner.status === "over" && <em>{copy.time}: {formatRunnerTime(runner.elapsed)}</em>}
+            <small>{runner.status === "over" ? copy.restart : copy.start}</small>
+          </span>
+        )}
+        {runner.status === "running" && <span className="taya-runner-tip">{copy.jump}</span>}
+      </button>
+      <button className="taya-runner-jump" type="button" onClick={handleRunnerAction}>
+        {runner.status === "running" ? copy.jumpButton : copy.startButton}
+      </button>
+    </div>
+  );
+}
+
+type SnakeDirection = "up" | "down" | "left" | "right";
+
+type SnakePoint = {
+  x: number;
+  y: number;
+};
+
+type SnakeState = {
+  status: "ready" | "running" | "over";
+  body: SnakePoint[];
+  food: SnakePoint;
+  direction: SnakeDirection;
+  lastDirection: SnakeDirection;
+  score: number;
+};
+
+type SnakeCopy = {
+  start: string;
+  gameOver: string;
+  score: string;
+  best: string;
+  restart: string;
+  up: string;
+  down: string;
+  left: string;
+  right: string;
+};
+
+const SNAKE_WIDTH = 14;
+const SNAKE_HEIGHT = 9;
+const SNAKE_BEST_KEY = "tayaSnakeBestV1";
+
+function createInitialSnake(status: SnakeState["status"] = "ready"): SnakeState {
+  return {
+    status,
+    body: [
+      { x: 5, y: 4 },
+      { x: 4, y: 4 },
+      { x: 3, y: 4 },
+    ],
+    food: { x: 10, y: 4 },
+    direction: "right",
+    lastDirection: "right",
+    score: 0,
+  };
+}
+
+function isSamePoint(first: SnakePoint, second: SnakePoint) {
+  return first.x === second.x && first.y === second.y;
+}
+
+function isOppositeDirection(first: SnakeDirection, second: SnakeDirection) {
+  return (
+    (first === "up" && second === "down") ||
+    (first === "down" && second === "up") ||
+    (first === "left" && second === "right") ||
+    (first === "right" && second === "left")
+  );
+}
+
+function turnSnake(current: SnakeState, direction: SnakeDirection): SnakeState {
+  if (current.status !== "running" || isOppositeDirection(current.lastDirection, direction)) return current;
+  return { ...current, direction };
+}
+
+function createSnakeFood(body: SnakePoint[]): SnakePoint {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const point = {
+      x: randomBreakIndex(SNAKE_WIDTH),
+      y: randomBreakIndex(SNAKE_HEIGHT),
+    };
+    if (!body.some((segment) => isSamePoint(segment, point))) return point;
+  }
+  return { x: 0, y: 0 };
+}
+
+function advanceSnake(current: SnakeState): SnakeState {
+  if (current.status !== "running") return current;
+  const head = current.body[0];
+  const movement = {
+    up: { x: 0, y: -1 },
+    down: { x: 0, y: 1 },
+    left: { x: -1, y: 0 },
+    right: { x: 1, y: 0 },
+  }[current.direction];
+  const nextHead = { x: head.x + movement.x, y: head.y + movement.y };
+  const hitWall =
+    nextHead.x < 0 ||
+    nextHead.x >= SNAKE_WIDTH ||
+    nextHead.y < 0 ||
+    nextHead.y >= SNAKE_HEIGHT;
+  const ateFood = isSamePoint(nextHead, current.food);
+  const collisionBody = ateFood ? current.body : current.body.slice(0, -1);
+  const hitSelf = collisionBody.some((segment) => isSamePoint(segment, nextHead));
+  if (hitWall || hitSelf) return { ...current, status: "over" };
+
+  const nextBody = [nextHead, ...current.body];
+  if (!ateFood) nextBody.pop();
+  return {
+    ...current,
+    body: nextBody,
+    food: ateFood ? createSnakeFood(nextBody) : current.food,
+    lastDirection: current.direction,
+    score: current.score + (ateFood ? 1 : 0),
+  };
+}
+
+function TayaSnake({ copy }: { copy: SnakeCopy }) {
+  const [game, setGame] = useState<SnakeState>(() => createInitialSnake());
+  const [bestScore, setBestScore] = useState(0);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(SNAKE_BEST_KEY) || 0);
+    const timer = window.setTimeout(() => setBestScore(Number.isFinite(saved) ? saved : 0), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (game.status !== "running") return;
+    const delay = Math.max(72, 158 - game.score * 6);
+    const timer = window.setInterval(() => setGame((current) => advanceSnake(current)), delay);
+    return () => window.clearInterval(timer);
+  }, [game.score, game.status]);
+
+  useEffect(() => {
+    if (game.status !== "over" || game.score <= bestScore) return;
+    window.localStorage.setItem(SNAKE_BEST_KEY, String(game.score));
+    const timer = window.setTimeout(() => setBestScore(game.score), 0);
+    return () => window.clearTimeout(timer);
+  }, [bestScore, game.score, game.status]);
+
+  useEffect(() => {
+    function controlSnake(event: KeyboardEvent) {
+      const directionByKey: Record<string, SnakeDirection | undefined> = {
+        ArrowUp: "up",
+        KeyW: "up",
+        ArrowDown: "down",
+        KeyS: "down",
+        ArrowLeft: "left",
+        KeyA: "left",
+        ArrowRight: "right",
+        KeyD: "right",
+      };
+      const direction = directionByKey[event.code];
+      if (!direction) return;
+      event.preventDefault();
+      setGame((current) => turnSnake(current, direction));
+    }
+    window.addEventListener("keydown", controlSnake);
+    return () => window.removeEventListener("keydown", controlSnake);
+  }, []);
+
+  function startSnake() {
+    setGame(createInitialSnake("running"));
+  }
+
+  return (
+    <div className="taya-snake-shell">
+      <div className="taya-snake-hud">
+        <span>{copy.score} <strong>{game.score}</strong></span>
+        <span>{copy.best} <strong>{bestScore}</strong></span>
+      </div>
+      <div className="taya-snake-board" role="img" aria-label={`${copy.score}: ${game.score}`}>
+        {Array.from({ length: SNAKE_WIDTH * SNAKE_HEIGHT }, (_, index) => {
+          const point = { x: index % SNAKE_WIDTH, y: Math.floor(index / SNAKE_WIDTH) };
+          const bodyIndex = game.body.findIndex((segment) => isSamePoint(segment, point));
+          const hasFood = isSamePoint(game.food, point);
+          return (
+            <span
+              key={index}
+              className={`${bodyIndex === 0 ? "is-head" : bodyIndex > 0 ? "is-body" : ""} ${hasFood ? "is-food" : ""}`}
+              aria-hidden="true"
+            />
+          );
+        })}
+        {game.status !== "running" && (
+          <div className="taya-snake-overlay">
+            <strong>{game.status === "over" ? copy.gameOver : "TAYA SNAKE"}</strong>
+            {game.status === "over" && <em>{copy.score}: {game.score}</em>}
+            <button type="button" onClick={startSnake}>
+              {game.status === "over" ? copy.restart : copy.start}
             </button>
           </div>
-        </header>
+        )}
+      </div>
+      <div className="taya-snake-controls" aria-label="Snake controls">
+        <button className="is-up" type="button" aria-label={copy.up} onClick={() => setGame((current) => turnSnake(current, "up"))}>↑</button>
+        <button className="is-left" type="button" aria-label={copy.left} onClick={() => setGame((current) => turnSnake(current, "left"))}>←</button>
+        <button className="is-down" type="button" aria-label={copy.down} onClick={() => setGame((current) => turnSnake(current, "down"))}>↓</button>
+        <button className="is-right" type="button" aria-label={copy.right} onClick={() => setGame((current) => turnSnake(current, "right"))}>→</button>
+      </div>
+    </div>
+  );
+}
 
-        <ToolSwitcher active={active} onSelect={onSelectTool} />
+type FlappyState = {
+  status: "ready" | "running" | "over";
+  birdY: number;
+  velocity: number;
+  pipeX: number;
+  gapY: number;
+  score: number;
+};
 
-        <section className="access-card">
-          <div className="access-lock" aria-hidden="true">
-            <span />
+type FlappyCopy = {
+  start: string;
+  startButton: string;
+  gameOver: string;
+  score: string;
+  best: string;
+  restart: string;
+  flap: string;
+};
+
+const FLAPPY_BEST_KEY = "tayaFlappyBestV1";
+const INITIAL_FLAPPY: FlappyState = {
+  status: "ready",
+  birdY: 45,
+  velocity: 0,
+  pipeX: 108,
+  gapY: 48,
+  score: 0,
+};
+
+function flapBird(current: FlappyState): FlappyState {
+  if (current.status !== "running") return current;
+  return { ...current, velocity: -29 };
+}
+
+function TayaFlappy({ copy }: { copy: FlappyCopy }) {
+  const [game, setGame] = useState<FlappyState>(INITIAL_FLAPPY);
+  const [bestScore, setBestScore] = useState(0);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(FLAPPY_BEST_KEY) || 0);
+    const timer = window.setTimeout(() => setBestScore(Number.isFinite(saved) ? saved : 0), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (game.status !== "running") return;
+    let animationFrame = 0;
+    let previousTime = window.performance.now();
+
+    function tick(now: number) {
+      const delta = Math.min((now - previousTime) / 1000, 0.034);
+      previousTime = now;
+      setGame((current) => {
+        if (current.status !== "running") return current;
+
+        const nextVelocity = current.velocity + 73 * delta;
+        const birdY = current.birdY + nextVelocity * delta;
+        let pipeX = current.pipeX - Math.min(44, 25 + current.score * 1.35) * delta;
+        let gapY = current.gapY;
+        let score = current.score;
+
+        if (pipeX < -16) {
+          pipeX = 108;
+          gapY = 31 + randomBreakIndex(38);
+          score += 1;
+        }
+
+        const pipeNearBird = pipeX < 31 && pipeX > 17;
+        const gapTop = gapY - 16;
+        const gapBottom = gapY + 16;
+        const hitPipe = pipeNearBird && (birdY < gapTop || birdY + 7 > gapBottom);
+        const hitEdge = birdY < 0 || birdY > 91;
+
+        return {
+          status: hitPipe || hitEdge ? "over" : "running",
+          birdY,
+          velocity: nextVelocity,
+          pipeX,
+          gapY,
+          score,
+        };
+      });
+      animationFrame = window.requestAnimationFrame(tick);
+    }
+
+    animationFrame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [game.status]);
+
+  useEffect(() => {
+    if (game.status !== "over" || game.score <= bestScore) return;
+    window.localStorage.setItem(FLAPPY_BEST_KEY, String(game.score));
+    const timer = window.setTimeout(() => setBestScore(game.score), 0);
+    return () => window.clearTimeout(timer);
+  }, [bestScore, game.score, game.status]);
+
+  useEffect(() => {
+    if (game.status !== "running") return;
+    function flapFromKeyboard(event: KeyboardEvent) {
+      if (event.code !== "Space" && event.code !== "ArrowUp") return;
+      event.preventDefault();
+      setGame((current) => flapBird(current));
+    }
+    window.addEventListener("keydown", flapFromKeyboard);
+    return () => window.removeEventListener("keydown", flapFromKeyboard);
+  }, [game.status]);
+
+  function startFlappy() {
+    setGame({ ...INITIAL_FLAPPY, status: "running" });
+  }
+
+  function handleFlappyAction() {
+    if (game.status !== "running") {
+      startFlappy();
+      return;
+    }
+    setGame((current) => flapBird(current));
+  }
+
+  const gapTop = Math.max(8, game.gapY - 16);
+  const gapBottom = Math.min(92, game.gapY + 16);
+
+  return (
+    <div className="taya-flappy-shell">
+      <button
+        className={`taya-flappy-stage is-${game.status}`}
+        type="button"
+        aria-label={game.status === "running" ? copy.flap : copy.start}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          handleFlappyAction();
+        }}
+        onClick={(event) => {
+          if (event.detail === 0) handleFlappyAction();
+        }}
+      >
+        <span className="taya-arcade-hud">
+          <span>{copy.score} <strong>{game.score}</strong></span>
+          <span>{copy.best} <strong>{bestScore}</strong></span>
+        </span>
+        <span className="taya-flappy-cloud cloud-one" aria-hidden="true">●●</span>
+        <span className="taya-flappy-cloud cloud-two" aria-hidden="true">●●●</span>
+        <span
+          className="taya-flappy-bird"
+          style={{ top: `${game.birdY}%`, transform: `rotate(${Math.max(-22, Math.min(34, game.velocity * 0.75))}deg)` }}
+          aria-hidden="true"
+        >
+          T
+        </span>
+        <span className="taya-flappy-pipe is-top" style={{ left: `${game.pipeX}%`, height: `${gapTop}%` }} aria-hidden="true" />
+        <span className="taya-flappy-pipe is-bottom" style={{ left: `${game.pipeX}%`, top: `${gapBottom}%` }} aria-hidden="true" />
+        <span className="taya-flappy-ground" aria-hidden="true" />
+        {game.status !== "running" && (
+          <span className="taya-arcade-overlay">
+            <strong>{game.status === "over" ? copy.gameOver : "TAYA FLAPPY"}</strong>
+            {game.status === "over" && <em>{copy.score}: {game.score}</em>}
+            <small>{game.status === "over" ? copy.restart : copy.start}</small>
+          </span>
+        )}
+      </button>
+      <button className="taya-arcade-action" type="button" onClick={handleFlappyAction}>
+        {game.status === "running" ? copy.flap : copy.startButton}
+      </button>
+    </div>
+  );
+}
+
+type BreakoutStatus = "ready" | "running" | "over" | "won";
+
+type BreakoutState = {
+  status: BreakoutStatus;
+  paddleX: number;
+  ballX: number;
+  ballY: number;
+  velocityX: number;
+  velocityY: number;
+  bricks: number[];
+  elapsed: number;
+};
+
+type BreakoutCopy = {
+  start: string;
+  gameOver: string;
+  cleared: string;
+  time: string;
+  best: string;
+  restart: string;
+  left: string;
+  right: string;
+};
+
+const BREAKOUT_COLUMNS = 8;
+const BREAKOUT_ROWS = 4;
+const BREAKOUT_BEST_KEY = "tayaBreakoutBestMsV1";
+
+function createBreakoutState(status: BreakoutStatus = "ready"): BreakoutState {
+  return {
+    status,
+    paddleX: 40,
+    ballX: 50,
+    ballY: 81,
+    velocityX: 27,
+    velocityY: -34,
+    bricks: Array.from({ length: BREAKOUT_COLUMNS * BREAKOUT_ROWS }, (_, index) => index),
+    elapsed: 0,
+  };
+}
+
+function formatArcadeTime(milliseconds: number) {
+  return milliseconds > 0 ? `${(milliseconds / 1000).toFixed(1)}s` : "—";
+}
+
+function moveBreakoutPaddle(current: BreakoutState, amount: number): BreakoutState {
+  return { ...current, paddleX: Math.max(0, Math.min(80, current.paddleX + amount)) };
+}
+
+function TayaBreakout({ copy }: { copy: BreakoutCopy }) {
+  const [game, setGame] = useState<BreakoutState>(() => createBreakoutState());
+  const [bestTime, setBestTime] = useState(0);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(BREAKOUT_BEST_KEY) || 0);
+    const timer = window.setTimeout(() => setBestTime(Number.isFinite(saved) ? saved : 0), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (game.status !== "running") return;
+    let animationFrame = 0;
+    let previousTime = window.performance.now();
+
+    function tick(now: number) {
+      const delta = Math.min((now - previousTime) / 1000, 0.034);
+      previousTime = now;
+      setGame((current) => {
+        if (current.status !== "running") return current;
+
+        let ballX = current.ballX + current.velocityX * delta;
+        let ballY = current.ballY + current.velocityY * delta;
+        let velocityX = current.velocityX;
+        let velocityY = current.velocityY;
+        let bricks = current.bricks;
+
+        if (ballX <= 1.5 || ballX >= 98.5) {
+          ballX = Math.max(1.5, Math.min(98.5, ballX));
+          velocityX *= -1;
+        }
+        if (ballY <= 1.5) {
+          ballY = 1.5;
+          velocityY = Math.abs(velocityY);
+        }
+
+        const hitPaddle =
+          velocityY > 0 &&
+          ballY >= 86 &&
+          ballY <= 91 &&
+          ballX >= current.paddleX - 1 &&
+          ballX <= current.paddleX + 21;
+        if (hitPaddle) {
+          ballY = 85.5;
+          velocityY = -Math.abs(velocityY);
+          const paddleOffset = (ballX - (current.paddleX + 10)) / 10;
+          velocityX = Math.max(-42, Math.min(42, velocityX + paddleOffset * 13));
+        }
+
+        const hitBrick = current.bricks.find((brick) => {
+          const row = Math.floor(brick / BREAKOUT_COLUMNS);
+          const column = brick % BREAKOUT_COLUMNS;
+          const left = 2 + column * 12;
+          const top = 8 + row * 9;
+          return ballX >= left && ballX <= left + 10.5 && ballY >= top && ballY <= top + 5.8;
+        });
+
+        if (hitBrick !== undefined) {
+          bricks = current.bricks.filter((brick) => brick !== hitBrick);
+          velocityY *= -1;
+        }
+
+        const elapsed = current.elapsed + delta * 1000;
+        if (bricks.length === 0) {
+          return { ...current, status: "won", ballX, ballY, velocityX, velocityY, bricks, elapsed };
+        }
+        if (ballY > 100) {
+          return { ...current, status: "over", ballX, ballY, velocityX, velocityY, bricks, elapsed };
+        }
+
+        return { ...current, ballX, ballY, velocityX, velocityY, bricks, elapsed };
+      });
+      animationFrame = window.requestAnimationFrame(tick);
+    }
+
+    animationFrame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [game.status]);
+
+  useEffect(() => {
+    if (game.status !== "won" || (bestTime > 0 && game.elapsed >= bestTime)) return;
+    window.localStorage.setItem(BREAKOUT_BEST_KEY, String(game.elapsed));
+    const timer = window.setTimeout(() => setBestTime(game.elapsed), 0);
+    return () => window.clearTimeout(timer);
+  }, [bestTime, game.elapsed, game.status]);
+
+  useEffect(() => {
+    if (game.status !== "running") return;
+    function controlBreakout(event: KeyboardEvent) {
+      if (event.code !== "ArrowLeft" && event.code !== "KeyA" && event.code !== "ArrowRight" && event.code !== "KeyD") return;
+      event.preventDefault();
+      const amount = event.code === "ArrowLeft" || event.code === "KeyA" ? -7 : 7;
+      setGame((current) => moveBreakoutPaddle(current, amount));
+    }
+    window.addEventListener("keydown", controlBreakout);
+    return () => window.removeEventListener("keydown", controlBreakout);
+  }, [game.status]);
+
+  function startBreakout() {
+    setGame(createBreakoutState("running"));
+  }
+
+  return (
+    <div className="taya-breakout-shell">
+      <div className="taya-arcade-hud">
+        <span>{copy.time} <strong>{formatArcadeTime(game.elapsed)}</strong></span>
+        <span>{copy.best} <strong>{formatArcadeTime(bestTime)}</strong></span>
+      </div>
+      <div
+        className="taya-breakout-stage"
+        role="application"
+        aria-label="Taya Breakout"
+        onPointerMove={(event) => {
+          if (game.status !== "running") return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const nextX = ((event.clientX - bounds.left) / bounds.width) * 100 - 10;
+          setGame((current) => ({ ...current, paddleX: Math.max(0, Math.min(80, nextX)) }));
+        }}
+      >
+        {Array.from({ length: BREAKOUT_COLUMNS * BREAKOUT_ROWS }, (_, brick) => {
+          const row = Math.floor(brick / BREAKOUT_COLUMNS);
+          const column = brick % BREAKOUT_COLUMNS;
+          return (
+            <span
+              key={brick}
+              className={`taya-breakout-brick tone-${row + 1} ${game.bricks.includes(brick) ? "" : "is-cleared"}`}
+              style={{ left: `${2 + column * 12}%`, top: `${8 + row * 9}%` }}
+              aria-hidden="true"
+            />
+          );
+        })}
+        <span className="taya-breakout-ball" style={{ left: `${game.ballX}%`, top: `${game.ballY}%` }} aria-hidden="true" />
+        <span className="taya-breakout-paddle" style={{ left: `${game.paddleX}%` }} aria-hidden="true" />
+        {game.status !== "running" && (
+          <div className="taya-arcade-overlay">
+            <strong>{game.status === "won" ? copy.cleared : game.status === "over" ? copy.gameOver : "TAYA BREAKOUT"}</strong>
+            {(game.status === "won" || game.status === "over") && <em>{copy.time}: {formatArcadeTime(game.elapsed)}</em>}
+            <button type="button" onClick={startBreakout}>
+              {game.status === "ready" ? copy.start : copy.restart}
+            </button>
           </div>
-          <div className="testing-badge">TESTING</div>
-          <h2>Testing in Progress</h2>
-          <p className="access-lead">Enter the tester password to continue.</p>
-          <form className="access-form" onSubmit={onSubmit}>
-            <label htmlFor="tester-password">Tester password</label>
-            <div className="password-field">
-              <input
-                id="tester-password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(event) => onPasswordChange(event.target.value)}
-                placeholder="Enter password"
-                autoComplete="current-password"
-                autoFocus
-              />
+        )}
+      </div>
+      <div className="taya-breakout-controls">
+        <button type="button" aria-label={copy.left} onClick={() => setGame((current) => moveBreakoutPaddle(current, -8))}>←</button>
+        <button type="button" onClick={startBreakout}>{game.status === "running" ? "↻" : copy.start}</button>
+        <button type="button" aria-label={copy.right} onClick={() => setGame((current) => moveBreakoutPaddle(current, 8))}>→</button>
+      </div>
+    </div>
+  );
+}
+
+type StackBlock = {
+  id: number;
+  x: number;
+  width: number;
+};
+
+type StackState = {
+  status: "ready" | "running" | "over";
+  blocks: StackBlock[];
+  movingX: number;
+  direction: 1 | -1;
+  score: number;
+};
+
+type StackCopy = {
+  start: string;
+  gameOver: string;
+  score: string;
+  best: string;
+  restart: string;
+  drop: string;
+};
+
+const STACK_BEST_KEY = "tayaStackBestV1";
+
+function createStackState(status: StackState["status"] = "ready"): StackState {
+  return {
+    status,
+    blocks: [{ id: 0, x: 20, width: 60 }],
+    movingX: 0,
+    direction: 1,
+    score: 0,
+  };
+}
+
+function placeStackBlockState(current: StackState): StackState {
+  if (current.status !== "running") return current;
+  const previous = current.blocks[current.blocks.length - 1];
+  const left = Math.max(previous.x, current.movingX);
+  const right = Math.min(previous.x + previous.width, current.movingX + previous.width);
+  const width = right - left;
+  if (width <= 0.8) return { ...current, status: "over" };
+
+  const nextScore = current.score + 1;
+  const nextBlock = { id: current.blocks.length, x: left, width };
+  const direction: 1 | -1 = nextScore % 2 === 0 ? 1 : -1;
+  return {
+    ...current,
+    blocks: [...current.blocks, nextBlock],
+    movingX: direction === 1 ? 0 : 100 - width,
+    direction,
+    score: nextScore,
+  };
+}
+
+function TayaStack({ copy }: { copy: StackCopy }) {
+  const [game, setGame] = useState<StackState>(() => createStackState());
+  const [bestScore, setBestScore] = useState(0);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(STACK_BEST_KEY) || 0);
+    const timer = window.setTimeout(() => setBestScore(Number.isFinite(saved) ? saved : 0), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (game.status !== "running") return;
+    let animationFrame = 0;
+    let previousTime = window.performance.now();
+
+    function tick(now: number) {
+      const delta = Math.min((now - previousTime) / 1000, 0.034);
+      previousTime = now;
+      setGame((current) => {
+        if (current.status !== "running") return current;
+        const width = current.blocks[current.blocks.length - 1].width;
+        const speed = Math.min(68, 29 + current.score * 2.1);
+        let movingX = current.movingX + current.direction * speed * delta;
+        let direction = current.direction;
+        if (movingX <= 0) {
+          movingX = 0;
+          direction = 1;
+        } else if (movingX + width >= 100) {
+          movingX = 100 - width;
+          direction = -1;
+        }
+        return { ...current, movingX, direction };
+      });
+      animationFrame = window.requestAnimationFrame(tick);
+    }
+
+    animationFrame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [game.status]);
+
+  useEffect(() => {
+    if (game.status !== "over" || game.score <= bestScore) return;
+    window.localStorage.setItem(STACK_BEST_KEY, String(game.score));
+    const timer = window.setTimeout(() => setBestScore(game.score), 0);
+    return () => window.clearTimeout(timer);
+  }, [bestScore, game.score, game.status]);
+
+  useEffect(() => {
+    if (game.status !== "running") return;
+    function dropFromKeyboard(event: KeyboardEvent) {
+      if (event.code !== "Space" && event.code !== "ArrowDown") return;
+      event.preventDefault();
+      setGame((current) => placeStackBlockState(current));
+    }
+    window.addEventListener("keydown", dropFromKeyboard);
+    return () => window.removeEventListener("keydown", dropFromKeyboard);
+  }, [game.status]);
+
+  function startStack() {
+    setGame(createStackState("running"));
+  }
+
+  function placeStackBlock() {
+    setGame((current) => placeStackBlockState(current));
+  }
+
+  function handleStackAction() {
+    if (game.status !== "running") {
+      startStack();
+      return;
+    }
+    placeStackBlock();
+  }
+
+  const visibleBlocks = game.blocks.slice(-8);
+  const movingWidth = game.blocks[game.blocks.length - 1].width;
+
+  return (
+    <div className="taya-stack-shell">
+      <button
+        className={`taya-stack-stage is-${game.status}`}
+        type="button"
+        aria-label={game.status === "running" ? copy.drop : copy.start}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          handleStackAction();
+        }}
+        onClick={(event) => {
+          if (event.detail === 0) handleStackAction();
+        }}
+      >
+        <span className="taya-arcade-hud">
+          <span>{copy.score} <strong>{game.score}</strong></span>
+          <span>{copy.best} <strong>{bestScore}</strong></span>
+        </span>
+        <span className="taya-stack-ground" aria-hidden="true" />
+        <span className="taya-stack-block is-base" style={{ left: "8%", bottom: "5%", width: "84%" }} aria-hidden="true" />
+        {visibleBlocks.map((block, index) => (
+          <span
+            key={block.id}
+            className={`taya-stack-block tone-${(block.id % 4) + 1}`}
+            style={{ left: `${block.x}%`, bottom: `${9 + index * 9}%`, width: `${block.width}%` }}
+            aria-hidden="true"
+          />
+        ))}
+        {game.status === "running" && (
+          <span
+            className={`taya-stack-block is-moving tone-${((game.blocks.length + 1) % 4) + 1}`}
+            style={{ left: `${game.movingX}%`, bottom: `${9 + visibleBlocks.length * 9}%`, width: `${movingWidth}%` }}
+            aria-hidden="true"
+          />
+        )}
+        {game.status !== "running" && (
+          <span className="taya-arcade-overlay">
+            <strong>{game.status === "over" ? copy.gameOver : "TAYA STACK"}</strong>
+            {game.status === "over" && <em>{copy.score}: {game.score}</em>}
+            <small>{game.status === "over" ? copy.restart : copy.start}</small>
+          </span>
+        )}
+      </button>
+      <button className="taya-arcade-action" type="button" onClick={handleStackAction}>
+        {game.status === "running" ? copy.drop : copy.start}
+      </button>
+    </div>
+  );
+}
+
+const breakGameCopy = {
+  en: {
+    open: "Take a tiny break",
+    another: "Another game",
+    random: "Random pause",
+    done: "Nice. Take one breath, then return whenever you’re ready.",
+    again: "Again",
+    close: "Close game",
+    bubble: "Pop bubble",
+    odd: "Choose the different tile",
+    number: "Choose number",
+    card: "Turn over card",
+    start: "Tap or press Space to start",
+    jump: "Tap · Space · ↑ to jump",
+    startButton: "START",
+    jumpButton: "JUMP",
+    gameOver: "Run complete",
+    time: "Time",
+    best: "Best",
+    restart: "Tap to run again",
+    snakeGameOver: "Snake stopped",
+    snakeRestart: "Play again",
+    score: "Score",
+    up: "Move up",
+    down: "Move down",
+    left: "Move left",
+    right: "Move right",
+    quizTitle: "Quick check",
+    quizHelp: "Solve one small question to unlock your break.",
+    quizAnswer: "Your answer",
+    quizContinue: "Unlock game",
+    quizWrong: "Not quite — try again.",
+    flapButton: "FLAP",
+    dropButton: "DROP",
+    cleared: "Board cleared",
+    games: {
+      bubbles: { title: "Bubble pause", help: "Pop the bubbles at your own pace.", progress: "bubbles popped" },
+      odd: { title: "Soft focus", help: "Find the tile that is just a little different.", progress: "rounds found" },
+      numbers: { title: "Number flow", help: "Tap the numbers from 1 to 9.", progress: "numbers cleared" },
+      memory: { title: "Memory clouds", help: "Turn over the cards and find three pairs.", progress: "pairs found" },
+      runner: { title: "Taya Runner", help: "Jump over obstacles. The longer you run, the faster it gets.", progress: "running time" },
+      snake: { title: "Taya Snake", help: "Collect the fruit without hitting the wall or yourself.", progress: "score" },
+      flappy: { title: "Taya Flappy", help: "Flap through the gaps. Each pipe makes the next one faster.", progress: "score" },
+      breakout: { title: "Taya Breakout", help: "Move the paddle, keep the ball alive, and clear every brick.", progress: "bricks" },
+      stack: { title: "Taya Stack", help: "Drop each moving block as neatly as you can.", progress: "blocks" },
+    },
+  },
+  ja: {
+    open: "ひと休みする",
+    another: "別のゲーム",
+    random: "ランダム休憩",
+    done: "おつかれさまです。ひと呼吸したら、いつでも戻れます。",
+    again: "もう一度",
+    close: "ゲームを閉じる",
+    bubble: "泡をポップ",
+    odd: "違うタイルを選ぶ",
+    number: "数字を選ぶ",
+    card: "カードをめくる",
+    start: "タップまたはSpaceでスタート",
+    jump: "タップ・Space・↑でジャンプ",
+    startButton: "START",
+    jumpButton: "JUMP",
+    gameOver: "ラン終了",
+    time: "タイム",
+    best: "ベスト",
+    restart: "タップでもう一度",
+    snakeGameOver: "ゲーム終了",
+    snakeRestart: "もう一度",
+    score: "スコア",
+    up: "上へ移動",
+    down: "下へ移動",
+    left: "左へ移動",
+    right: "右へ移動",
+    quizTitle: "クイッククイズ",
+    quizHelp: "簡単な問題に答えるとゲームが開きます。",
+    quizAnswer: "答え",
+    quizContinue: "ゲームを開く",
+    quizWrong: "もう一度お試しください。",
+    flapButton: "FLAP",
+    dropButton: "DROP",
+    cleared: "クリア",
+    games: {
+      bubbles: { title: "バブル休憩", help: "気の向くままに、泡をタップしてください。", progress: "個の泡をポップ" },
+      odd: { title: "やさしい集中", help: "少しだけ色の違うタイルを見つけてください。", progress: "ラウンド完了" },
+      numbers: { title: "ナンバーフロー", help: "1から9まで順番にタップしてください。", progress: "個の数字をクリア" },
+      memory: { title: "雲の記憶", help: "カードをめくって3組のペアを見つけてください。", progress: "組を発見" },
+      runner: { title: "Taya Runner", help: "障害物をジャンプ。走り続けるほどスピードが上がります。", progress: "走行タイム" },
+      snake: { title: "Taya Snake", help: "壁や自分にぶつからないようにフルーツを集めます。", progress: "スコア" },
+      flappy: { title: "Taya Flappy", help: "タップして隙間を通過。進むほど速くなります。", progress: "スコア" },
+      breakout: { title: "Taya Breakout", help: "パドルを動かし、ボールを落とさず全てのブロックを消します。", progress: "ブロック" },
+      stack: { title: "Taya Stack", help: "動くブロックをできるだけきれいに積み上げます。", progress: "ブロック" },
+    },
+  },
+  zh_cn: {
+    open: "休息一下",
+    another: "换一个游戏",
+    random: "随机小休息",
+    done: "很好。深呼吸一下，准备好再继续。",
+    again: "再来一次",
+    close: "关闭小游戏",
+    bubble: "戳破泡泡",
+    odd: "选择不同的方块",
+    number: "选择数字",
+    card: "翻开卡片",
+    start: "点击或按空格开始",
+    jump: "点击 · 空格 · ↑ 跳跃",
+    startButton: "开始",
+    jumpButton: "跳跃",
+    gameOver: "跑酷结束",
+    time: "本次",
+    best: "最佳",
+    restart: "点击再跑一次",
+    snakeGameOver: "游戏结束",
+    snakeRestart: "再玩一次",
+    score: "分数",
+    up: "向上移动",
+    down: "向下移动",
+    left: "向左移动",
+    right: "向右移动",
+    quizTitle: "快速小测验",
+    quizHelp: "答对一道简单题即可进入游戏。",
+    quizAnswer: "你的答案",
+    quizContinue: "进入游戏",
+    quizWrong: "还差一点，请再试一次。",
+    flapButton: "拍动",
+    dropButton: "放下",
+    cleared: "全部消除",
+    games: {
+      bubbles: { title: "泡泡休息", help: "慢慢戳破泡泡，放松一下。", progress: "个泡泡已戳破" },
+      odd: { title: "轻松找不同", help: "找出颜色有一点点不同的方块。", progress: "轮已找到" },
+      numbers: { title: "数字流", help: "按照1到9的顺序点击数字。", progress: "个数字已完成" },
+      memory: { title: "云朵记忆", help: "翻开卡片，找出三组相同图案。", progress: "组已找到" },
+      runner: { title: "Taya Runner", help: "跳过障碍物，坚持越久速度越快。", progress: "跑酷时间" },
+      snake: { title: "Taya Snake", help: "吃到水果，同时不要撞墙或撞到自己。", progress: "分数" },
+      flappy: { title: "Taya Flappy", help: "点击穿过缝隙，每通过一个障碍速度都会加快。", progress: "分数" },
+      breakout: { title: "Taya Breakout", help: "移动挡板接住小球，消除所有砖块。", progress: "砖块" },
+      stack: { title: "Taya Stack", help: "看准时机，把移动的方块整齐叠起来。", progress: "方块" },
+    },
+  },
+  zh_tw: {
+    open: "休息一下",
+    another: "換一個遊戲",
+    random: "隨機小休息",
+    done: "很好。深呼吸一下，準備好再繼續。",
+    again: "再來一次",
+    close: "關閉小遊戲",
+    bubble: "戳破泡泡",
+    odd: "選擇不同的方塊",
+    number: "選擇數字",
+    card: "翻開卡片",
+    start: "點擊或按空格開始",
+    jump: "點擊 · 空格 · ↑ 跳躍",
+    startButton: "開始",
+    jumpButton: "跳躍",
+    gameOver: "跑酷結束",
+    time: "本次",
+    best: "最佳",
+    restart: "點擊再跑一次",
+    snakeGameOver: "遊戲結束",
+    snakeRestart: "再玩一次",
+    score: "分數",
+    up: "向上移動",
+    down: "向下移動",
+    left: "向左移動",
+    right: "向右移動",
+    quizTitle: "快速小測驗",
+    quizHelp: "答對一道簡單題即可進入遊戲。",
+    quizAnswer: "你的答案",
+    quizContinue: "進入遊戲",
+    quizWrong: "還差一點，請再試一次。",
+    flapButton: "拍動",
+    dropButton: "放下",
+    cleared: "全部消除",
+    games: {
+      bubbles: { title: "泡泡休息", help: "慢慢戳破泡泡，放鬆一下。", progress: "個泡泡已戳破" },
+      odd: { title: "輕鬆找不同", help: "找出顏色有一點點不同的方塊。", progress: "輪已找到" },
+      numbers: { title: "數字流", help: "按照1到9的順序點擊數字。", progress: "個數字已完成" },
+      memory: { title: "雲朵記憶", help: "翻開卡片，找出三組相同圖案。", progress: "組已找到" },
+      runner: { title: "Taya Runner", help: "跳過障礙物，堅持越久速度越快。", progress: "跑酷時間" },
+      snake: { title: "Taya Snake", help: "吃到水果，同時不要撞牆或撞到自己。", progress: "分數" },
+      flappy: { title: "Taya Flappy", help: "點擊穿過縫隙，每通過一個障礙速度都會加快。", progress: "分數" },
+      breakout: { title: "Taya Breakout", help: "移動擋板接住小球，消除所有磚塊。", progress: "磚塊" },
+      stack: { title: "Taya Stack", help: "看準時機，把移動的方塊整齊疊起來。", progress: "方塊" },
+    },
+  },
+  mn: {
+    open: "Take a tiny break",
+    another: "Another game",
+    random: "Random pause",
+    done: "Nice. Take one breath, then return whenever you’re ready.",
+    again: "Again",
+    close: "Close game",
+    bubble: "Pop bubble",
+    odd: "Choose the different tile",
+    number: "Choose number",
+    card: "Turn over card",
+    start: "Tap or press Space to start",
+    jump: "Tap · Space · ↑ to jump",
+    startButton: "START",
+    jumpButton: "JUMP",
+    gameOver: "Run complete",
+    time: "Time",
+    best: "Best",
+    restart: "Tap to run again",
+    snakeGameOver: "Snake stopped",
+    snakeRestart: "Play again",
+    score: "Score",
+    up: "Move up",
+    down: "Move down",
+    left: "Move left",
+    right: "Move right",
+    quizTitle: "Quick check",
+    quizHelp: "Solve one small question to unlock your break.",
+    quizAnswer: "Your answer",
+    quizContinue: "Unlock game",
+    quizWrong: "Not quite — try again.",
+    flapButton: "FLAP",
+    dropButton: "DROP",
+    cleared: "Board cleared",
+    games: {
+      bubbles: { title: "Bubble pause", help: "Pop the bubbles at your own pace.", progress: "bubbles popped" },
+      odd: { title: "Soft focus", help: "Find the tile that is just a little different.", progress: "rounds found" },
+      numbers: { title: "Number flow", help: "Tap the numbers from 1 to 9.", progress: "numbers cleared" },
+      memory: { title: "Memory clouds", help: "Turn over the cards and find three pairs.", progress: "pairs found" },
+      runner: { title: "Taya Runner", help: "Jump over obstacles. The longer you run, the faster it gets.", progress: "running time" },
+      snake: { title: "Taya Snake", help: "Collect the fruit without hitting the wall or yourself.", progress: "score" },
+      flappy: { title: "Taya Flappy", help: "Flap through the gaps. Each pipe makes the next one faster.", progress: "score" },
+      breakout: { title: "Taya Breakout", help: "Move the paddle, keep the ball alive, and clear every brick.", progress: "bricks" },
+      stack: { title: "Taya Stack", help: "Drop each moving block as neatly as you can.", progress: "blocks" },
+    },
+  },
+} as const;
+
+function BreakGame({ language }: { language: NaviLanguage }) {
+  const [revealed, setRevealed] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [gameKind, setGameKind] = useState<BreakGameKind>("runner");
+  const [quiz, setQuiz] = useState<BreakQuiz>({ prompt: "2 + 3", answer: 5 });
+  const [quizAnswer, setQuizAnswer] = useState("");
+  const [quizPassed, setQuizPassed] = useState(false);
+  const [quizError, setQuizError] = useState(false);
+  const [bubbles, setBubbles] = useState<BreakBubble[]>(BREAK_BUBBLES);
+  const [oddRound, setOddRound] = useState(0);
+  const [oddIndex, setOddIndex] = useState(4);
+  const [numberTiles, setNumberTiles] = useState([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  const [nextNumber, setNextNumber] = useState(1);
+  const [memoryCards, setMemoryCards] = useState<MemoryCard[]>(
+    MEMORY_SYMBOLS.flatMap((symbol, index) => [
+      { id: index * 2, symbol },
+      { id: index * 2 + 1, symbol },
+    ]),
+  );
+  const [flippedCards, setFlippedCards] = useState<number[]>([]);
+  const [matchedSymbols, setMatchedSymbols] = useState<string[]>([]);
+  const [memoryLocked, setMemoryLocked] = useState(false);
+  const copy = breakGameCopy[language];
+  const popped = BREAK_BUBBLES.length - bubbles.length;
+
+  const gameProgress = {
+    bubbles: { value: popped, max: BREAK_BUBBLES.length },
+    odd: { value: oddRound, max: 5 },
+    numbers: { value: Math.min(nextNumber - 1, 9), max: 9 },
+    memory: { value: matchedSymbols.length, max: MEMORY_SYMBOLS.length },
+    runner: { value: 0, max: 1 },
+    snake: { value: 0, max: 1 },
+    flappy: { value: 0, max: 1 },
+    breakout: { value: 0, max: 1 },
+    stack: { value: 0, max: 1 },
+  }[gameKind];
+  const isArcadeGame = ["runner", "snake", "flappy", "breakout", "stack"].includes(gameKind);
+  const isComplete = !isArcadeGame && gameProgress.value >= gameProgress.max;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setRevealed(true), 9000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
+
+  function resetGame(kind = gameKind) {
+    setBubbles([...BREAK_BUBBLES]);
+    setOddRound(0);
+    setOddIndex(randomBreakIndex(9));
+    setNumberTiles(shuffled([1, 2, 3, 4, 5, 6, 7, 8, 9]));
+    setNextNumber(1);
+    setMemoryCards(createMemoryCards());
+    setFlippedCards([]);
+    setMatchedSymbols([]);
+    setMemoryLocked(false);
+    setGameKind(kind);
+  }
+
+  function openRunner() {
+    resetGame("runner");
+    setQuiz(createBreakQuiz());
+    setQuizAnswer("");
+    setQuizPassed(false);
+    setQuizError(false);
+    setOpen(true);
+  }
+
+  function checkQuizAnswer() {
+    if (Number(quizAnswer.trim()) !== quiz.answer) {
+      setQuizAnswer("");
+      setQuizError(true);
+      return;
+    }
+
+    setQuizPassed(true);
+    setQuizError(false);
+    resetGame("runner");
+  }
+
+  function selectOddTile(index: number) {
+    if (index !== oddIndex || oddRound >= 5) return;
+    const nextRound = oddRound + 1;
+    setOddRound(nextRound);
+    if (nextRound < 5) setOddIndex(randomBreakIndex(9));
+  }
+
+  function selectNumber(value: number) {
+    if (value === nextNumber) setNextNumber((current) => current + 1);
+  }
+
+  function flipMemoryCard(index: number) {
+    const card = memoryCards[index];
+    if (
+      memoryLocked ||
+      flippedCards.includes(index) ||
+      matchedSymbols.includes(card.symbol)
+    ) return;
+
+    const nextFlipped = [...flippedCards, index];
+    setFlippedCards(nextFlipped);
+    if (nextFlipped.length !== 2) return;
+
+    setMemoryLocked(true);
+    const [firstIndex, secondIndex] = nextFlipped;
+    const isMatch = memoryCards[firstIndex].symbol === memoryCards[secondIndex].symbol;
+    window.setTimeout(() => {
+      if (isMatch) {
+        setMatchedSymbols((current) => [...current, memoryCards[firstIndex].symbol]);
+      }
+      setFlippedCards([]);
+      setMemoryLocked(false);
+    }, isMatch ? 380 : 700);
+  }
+
+  function renderCurrentGame() {
+    if (gameKind === "stack") {
+      return (
+        <TayaStack
+          copy={{
+            start: copy.startButton,
+            gameOver: copy.snakeGameOver,
+            score: copy.score,
+            best: copy.best,
+            restart: copy.snakeRestart,
+            drop: copy.dropButton,
+          }}
+        />
+      );
+    }
+
+    if (gameKind === "breakout") {
+      return (
+        <TayaBreakout
+          copy={{
+            start: copy.startButton,
+            gameOver: copy.snakeGameOver,
+            cleared: copy.cleared,
+            time: copy.time,
+            best: copy.best,
+            restart: copy.snakeRestart,
+            left: copy.left,
+            right: copy.right,
+          }}
+        />
+      );
+    }
+
+    if (gameKind === "flappy") {
+      return (
+        <TayaFlappy
+          copy={{
+            start: copy.start,
+            startButton: copy.startButton,
+            gameOver: copy.snakeGameOver,
+            score: copy.score,
+            best: copy.best,
+            restart: copy.snakeRestart,
+            flap: copy.flapButton,
+          }}
+        />
+      );
+    }
+
+    if (gameKind === "snake") {
+      return (
+        <TayaSnake
+          copy={{
+            start: copy.startButton,
+            gameOver: copy.snakeGameOver,
+            score: copy.score,
+            best: copy.best,
+            restart: copy.snakeRestart,
+            up: copy.up,
+            down: copy.down,
+            left: copy.left,
+            right: copy.right,
+          }}
+        />
+      );
+    }
+
+    if (gameKind === "runner") {
+      return (
+        <TayaRunner
+          copy={{
+            start: copy.start,
+            jump: copy.jump,
+            startButton: copy.startButton,
+            jumpButton: copy.jumpButton,
+            gameOver: copy.gameOver,
+            time: copy.time,
+            best: copy.best,
+            restart: copy.restart,
+          }}
+        />
+      );
+    }
+
+    if (gameKind === "bubbles") {
+      return bubbles.map((bubble, index) => (
+        <button
+          key={bubble.id}
+          className={`break-bubble tone-${bubble.tone}`}
+          type="button"
+          aria-label={`${copy.bubble} ${index + 1}`}
+          style={{
+            left: `${bubble.x}%`,
+            top: `${bubble.y}%`,
+            width: bubble.size,
+            height: bubble.size,
+            animationDelay: `${bubble.delay}s`,
+          }}
+          onClick={() => setBubbles((current) => current.filter((item) => item.id !== bubble.id))}
+        />
+      ));
+    }
+
+    if (gameKind === "odd") {
+      return (
+        <div className={`break-odd-grid palette-${oddRound % 4}`}>
+          {Array.from({ length: 9 }, (_, index) => (
+            <button
+              key={`${oddRound}-${index}`}
+              className={index === oddIndex ? "is-odd" : ""}
+              type="button"
+              aria-label={`${copy.odd} ${index + 1}`}
+              onClick={() => selectOddTile(index)}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    if (gameKind === "numbers") {
+      return (
+        <div className="break-number-grid">
+          {numberTiles.map((number) => (
+            <button
+              key={number}
+              className={number < nextNumber ? "is-cleared" : ""}
+              type="button"
+              aria-label={`${copy.number} ${number}`}
+              onClick={() => selectNumber(number)}
+            >
+              {number < nextNumber ? "✓" : number}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="break-memory-grid">
+        {memoryCards.map((card, index) => {
+          const isFaceUp = flippedCards.includes(index) || matchedSymbols.includes(card.symbol);
+          return (
+            <button
+              key={card.id}
+              className={`${isFaceUp ? "is-face-up" : ""} ${matchedSymbols.includes(card.symbol) ? "is-matched" : ""}`}
+              type="button"
+              aria-label={`${copy.card} ${index + 1}`}
+              aria-pressed={isFaceUp}
+              onClick={() => flipMemoryCard(index)}
+            >
+              <span>{isFaceUp ? card.symbol : "?"}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <button
+        className={`break-game-trigger ${revealed ? "is-visible" : ""}`}
+        type="button"
+        aria-label={copy.open}
+        title={copy.open}
+        onClick={openRunner}
+      >
+        <span aria-hidden="true">✦</span>
+      </button>
+
+      {open && (
+        <div className="break-game-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
+          <section
+            className={`break-game-card ${quizPassed && isArcadeGame ? "is-runner" : "is-quiz"}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="break-game-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            {!quizPassed ? (
+              <div className="break-quiz-view">
+                <div className="break-game-heading">
+                  <div>
+                    <span className="break-game-kicker">TAYA TOOL · QUICK CHECK</span>
+                    <h2 id="break-game-title">{copy.quizTitle}</h2>
+                    <p>{copy.quizHelp}</p>
+                  </div>
+                  <div className="break-game-heading-actions">
+                    <button className="break-game-close" type="button" aria-label={copy.close} onClick={() => setOpen(false)}>×</button>
+                  </div>
+                </div>
+
+                <form
+                  className="break-quiz-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    checkQuizAnswer();
+                  }}
+                >
+                  <div className="break-quiz-question" aria-live="polite">
+                    <span>{quiz.prompt}</span>
+                    <strong>= ?</strong>
+                  </div>
+                  <label htmlFor="break-quiz-answer">{copy.quizAnswer}</label>
+                  <div className="break-quiz-answer-row">
+                    <input
+                      id="break-quiz-answer"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="-?[0-9]*"
+                      autoComplete="off"
+                      autoFocus
+                      value={quizAnswer}
+                      onChange={(event) => {
+                        setQuizAnswer(event.target.value);
+                        setQuizError(false);
+                      }}
+                    />
+                    <button type="submit" disabled={!quizAnswer.trim()}>{copy.quizContinue}</button>
+                  </div>
+                  {quizError && <p className="break-quiz-error" role="alert">{copy.quizWrong}</p>}
+                </form>
+              </div>
+            ) : (
+              <>
+            <div className="break-game-heading">
+              <div>
+                <span className="break-game-kicker">TAYA TOOL · GAME</span>
+                <h2 id="break-game-title">{copy.games[gameKind].title}</h2>
+                <p>{copy.games[gameKind].help}</p>
+              </div>
+              <div className="break-game-heading-actions">
+                <button className="break-game-close" type="button" aria-label={copy.close} onClick={() => setOpen(false)}>×</button>
+              </div>
+            </div>
+
+            <div className="break-game-tabs" role="tablist" aria-label="Choose game">
               <button
+                className={gameKind === "runner" ? "is-active" : ""}
                 type="button"
-                onClick={() => setShowPassword((current) => !current)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                role="tab"
+                aria-selected={gameKind === "runner"}
+                onClick={() => resetGame("runner")}
               >
-                {showPassword ? "Hide" : "Show"}
+                Runner
+              </button>
+              <button
+                className={gameKind === "snake" ? "is-active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={gameKind === "snake"}
+                onClick={() => resetGame("snake")}
+              >
+                Snake
+              </button>
+              <button
+                className={gameKind === "flappy" ? "is-active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={gameKind === "flappy"}
+                onClick={() => resetGame("flappy")}
+              >
+                Flappy
+              </button>
+              <button
+                className={gameKind === "breakout" ? "is-active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={gameKind === "breakout"}
+                onClick={() => resetGame("breakout")}
+              >
+                Breakout
+              </button>
+              <button
+                className={gameKind === "stack" ? "is-active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={gameKind === "stack"}
+                onClick={() => resetGame("stack")}
+              >
+                Stack
               </button>
             </div>
-            {error && <div className="access-error" role="alert">{error}</div>}
-            <button
-              className="button button-primary access-submit"
-              type="submit"
-              disabled={checking || !password}
-            >
-              {checking ? "Checking…" : "Enter Expert Tools"}
-            </button>
-          </form>
-          <p className="access-note">
-            Expert data is processed only in this browser. Nothing is uploaded or stored on a server.
-          </p>
-        </section>
 
-        <footer>Taya Tool · Tester access</footer>
-      </div>
-    </main>
+            {!isArcadeGame && (
+              <div className="break-game-progress" aria-live="polite">
+                <span style={{ width: `${(gameProgress.value / gameProgress.max) * 100}%` }} />
+                <small>{gameProgress.value} / {gameProgress.max} {copy.games[gameKind].progress}</small>
+              </div>
+            )}
+
+            <div className={`break-game-board game-${gameKind} ${isComplete ? "is-complete" : ""}`}>
+              {!isComplete && renderCurrentGame()}
+              {isComplete && (
+                <div className="break-game-done">
+                  <span aria-hidden="true">☁</span>
+                  <p>{copy.done}</p>
+                  <div className="break-game-done-actions">
+                    <button type="button" onClick={() => resetGame()}>{copy.again}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -2245,14 +3939,12 @@ function SlackFormatterPanel({
   onToggleTheme,
   onLanguageChange,
   onSelectTool,
-  onLock,
 }: {
   theme: "light" | "dark";
   language: NaviLanguage;
   onToggleTheme: () => void;
   onLanguageChange: (language: NaviLanguage) => void;
   onSelectTool: (tool: ToolView) => void;
-  onLock: () => void;
 }) {
   const uiLanguage: Language =
     language === "ja"
@@ -2304,13 +3996,22 @@ function SlackFormatterPanel({
 
   async function copyAllExperts() {
     const combined = experts
-      .map((expert) => formatSlackExpert(expert))
-      .join("\n\n────────────────────\n\n");
+      .map((expert) => formatSlackExpertForCombinedCopy(expert))
+      .join("\n\n\n");
     const combinedHtml = experts
-      .map((expert) => formatSlackExpertHtml(expert))
-      .join('<hr style="margin:20px 0;border:0;border-top:1px solid #cccccc">');
+      .map((expert) => formatSlackExpertHtmlForCombinedCopy(expert))
+      .join("<br>");
     await writeSlackClipboard(combined, `<div>${combinedHtml}</div>`);
     setCopiedId("all");
+    window.setTimeout(() => setCopiedId(""), 1800);
+  }
+
+  async function copyExpertList() {
+    await writeSlackClipboard(
+      formatSlackExpertList(experts),
+      formatSlackExpertListHtml(experts),
+    );
+    setCopiedId("expert-list");
     window.setTimeout(() => setCopiedId(""), 1800);
   }
 
@@ -2354,15 +4055,6 @@ function SlackFormatterPanel({
               <option value="zh_tw">中文（繁體）</option>
               <option value="mn">Монгол</option>
             </select>
-            <button
-              className="lock-toggle"
-              type="button"
-              onClick={onLock}
-              aria-label="Lock Expert Tools"
-              title="Lock Expert Tools"
-            >
-              🔒
-            </button>
             <button
               className="theme-toggle"
               type="button"
@@ -2421,9 +4113,24 @@ function SlackFormatterPanel({
               <p>{t.resultsHelp}</p>
             </div>
             {experts.length > 0 && (
-              <button className="button button-secondary" type="button" onClick={copyAllExperts}>
-                {copiedId === "all" ? t.copiedAll : t.copyAll}
-              </button>
+              <div className="slack-results-actions">
+                <button
+                  className="button button-muted"
+                  type="button"
+                  onClick={copyExpertList}
+                >
+                  {copiedId === "expert-list"
+                    ? t.copiedExpertList
+                    : t.copyExpertList}
+                </button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={copyAllExperts}
+                >
+                  {copiedId === "all" ? t.copiedAll : t.copyAll}
+                </button>
+              </div>
             )}
           </div>
 
@@ -2637,10 +4344,6 @@ function SlackFormatterPanel({
 
 export default function Home() {
   const [activeTool, setActiveTool] = useState<ToolView>("excel");
-  const [expertUnlocked, setExpertUnlocked] = useState(false);
-  const [testerPassword, setTesterPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [checkingPassword, setCheckingPassword] = useState(false);
   const [language, setLanguage] = useState<NaviLanguage>("en");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("create");
@@ -2653,12 +4356,12 @@ export default function Home() {
     useState<ImportedWorkbookSummary | null>(null);
   const [readingExcel, setReadingExcel] = useState(false);
   const [fileName, setFileName] = useState("Expert_List.xlsx");
-  const [sheetMode, setSheetMode] = useState<SheetMode>("single");
+  const [sheetMode, setSheetMode] = useState<SheetMode>("custom");
   const [singleSheetName, setSingleSheetName] = useState("Expert List");
   const [customSheets, setCustomSheets] = useState(["Expert List"]);
   const [newSheetName, setNewSheetName] = useState("");
-  const [sheetOrganizerOpen, setSheetOrganizerOpen] = useState(false);
   const [draggedExpertId, setDraggedExpertId] = useState("");
+  const [draggedFromSheet, setDraggedFromSheet] = useState("");
   const [dragOverSheet, setDragOverSheet] = useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error" | "">("");
@@ -2676,10 +4379,8 @@ export default function Home() {
   const t = translations[expertLanguage];
 
   useEffect(() => {
-    const unlocked = window.sessionStorage.getItem(EXPERT_ACCESS_KEY) === "unlocked";
     const savedLanguage = window.localStorage.getItem(GLOBAL_LANGUAGE_KEY);
     const timer = window.setTimeout(() => {
-      setExpertUnlocked(unlocked);
       if (GLOBAL_LANGUAGES.includes(savedLanguage as NaviLanguage)) {
         setLanguage(savedLanguage as NaviLanguage);
       }
@@ -2730,33 +4431,6 @@ export default function Home() {
     document.documentElement.dataset.theme = next;
   }
 
-  async function unlockExpert(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setCheckingPassword(true);
-    setPasswordError("");
-    try {
-      const passwordHash = await hashPassword(testerPassword);
-      if (passwordHash !== EXPERT_PASSWORD_HASH) {
-        setPasswordError("Incorrect password. Please try again.");
-        return;
-      }
-      window.sessionStorage.setItem(EXPERT_ACCESS_KEY, "unlocked");
-      setExpertUnlocked(true);
-      setTesterPassword("");
-    } catch {
-      setPasswordError("Unable to verify the password. Refresh the page and try again.");
-    } finally {
-      setCheckingPassword(false);
-    }
-  }
-
-  function lockExpert() {
-    window.sessionStorage.removeItem(EXPERT_ACCESS_KEY);
-    setExpertUnlocked(false);
-    setTesterPassword("");
-    setPasswordError("");
-  }
-
   function switchWorkflowMode(nextMode: WorkflowMode) {
     setWorkflowMode(nextMode);
     setRaw("");
@@ -2765,7 +4439,7 @@ export default function Home() {
     setComparisonItems([]);
     setRetainedCount(0);
     setImportedWorkbook(null);
-    setSheetMode("single");
+    setSheetMode("custom");
     setSingleSheetName("Expert List");
     setCustomSheets(["Expert List"]);
     setIncludeExpertSummary(false);
@@ -2847,6 +4521,7 @@ export default function Home() {
               metadataIds.get(`${sheet.name}::${rowNumber}`) ?? createStableId(),
             ...recordBase,
             sheetName: sheet.name,
+            sheetNames: [sheet.name],
             warnings: calculateWarnings(recordBase),
           });
         }
@@ -2859,18 +4534,19 @@ export default function Home() {
         throw new Error("Unsupported Taya workbook");
       }
 
-      setExistingRecords(importedRecords);
-      setRecords(importedRecords);
+      const consolidatedRecords = consolidateImportedRecords(importedRecords);
+      setExistingRecords(consolidatedRecords);
+      setRecords(consolidatedRecords);
       setImportedWorkbook({ fileName: file.name, sheetNames: supportedSheetNames });
       setCustomSheets(supportedSheetNames);
       setSheetMode("custom");
       setComparisonItems([]);
-      setRetainedCount(importedRecords.length);
+      setRetainedCount(consolidatedRecords.length);
       setFileName(
         `${file.name.replace(/\.xlsx$/i, "") || "Expert_List"}_updated.xlsx`,
       );
       setMessage(
-        `${t.uploadedExcel}: ${file.name} · ${importedRecords.length} ${t.experts}`,
+        `${t.uploadedExcel}: ${file.name} · ${consolidatedRecords.length} ${t.experts}`,
       );
       setMessageType("success");
     } catch (error) {
@@ -2936,11 +4612,10 @@ export default function Home() {
     setComparisonItems([]);
     setRetainedCount(0);
     setImportedWorkbook(null);
-    setSheetMode("single");
+    setSheetMode("custom");
     setSingleSheetName("Expert List");
     setCustomSheets(["Expert List"]);
     setNewSheetName("");
-    setSheetOrganizerOpen(false);
     setIncludeUpdateSummary(false);
     setUpdateSummaryLanguage("ja");
     setMessage("");
@@ -3003,7 +4678,7 @@ export default function Home() {
 
   function updateRecord(
     id: string,
-    field: keyof Omit<ExpertRecord, "id" | "warnings">,
+    field: DataField,
     value: string,
   ) {
     setRecords((current) =>
@@ -3013,19 +4688,6 @@ export default function Home() {
         return { ...next, warnings: calculateWarnings(next) };
       }),
     );
-  }
-
-  function changeSheetMode(nextMode: SheetMode) {
-    setSheetMode(nextMode);
-    if (nextMode === "custom") {
-      const assignedSheets = records
-        .map((record) => record.sheetName.trim())
-        .filter(Boolean);
-      setCustomSheets((current) => [
-        ...new Set([...current, ...assignedSheets]),
-      ]);
-      setSheetOrganizerOpen(true);
-    }
   }
 
   function addCustomSheet() {
@@ -3050,28 +4712,79 @@ export default function Home() {
       current.map((name) => (name === currentName ? nextName : name)),
     );
     setRecords((current) =>
-      current.map((record) =>
-        record.sheetName === currentName
-          ? { ...record, sheetName: nextName }
-          : record,
-      ),
+      current.map((record) => {
+        const sheetNames = getRecordSheetNames(record).map((name) =>
+          name === currentName ? nextName : name,
+        );
+        return {
+          ...record,
+          sheetName:
+            record.sheetName === currentName ? nextName : record.sheetName,
+          sheetNames: [...new Set(sheetNames)],
+        };
+      }),
     );
   }
 
   function deleteCustomSheet(sheetName: string) {
-    const hasExperts = records.some((record) => record.sheetName === sheetName);
+    const hasExperts = records.some((record) =>
+      getRecordSheetNames(record).includes(sheetName),
+    );
     if (hasExperts || customSheets.length <= 1) return;
     setCustomSheets((current) => current.filter((name) => name !== sheetName));
   }
 
-  function moveExpertToSheet(expertId: string, sheetName: string) {
+  function copyExpertToSheet(expertId: string, sheetName: string) {
     setRecords((current) =>
-      current.map((record) =>
-        record.id === expertId ? { ...record, sheetName } : record,
-      ),
+      current.map((record) => {
+        if (record.id !== expertId) return record;
+        const sheetNames = [
+          ...new Set([...getRecordSheetNames(record), sheetName]),
+        ];
+        return { ...record, sheetName: sheetNames[0], sheetNames };
+      }),
     );
     setDraggedExpertId("");
+    setDraggedFromSheet("");
     setDragOverSheet("");
+  }
+
+  function moveExpertToSheet(
+    expertId: string,
+    sourceSheet: string,
+    destinationSheet: string,
+  ) {
+    if (!sourceSheet || sourceSheet === destinationSheet) {
+      setDraggedExpertId("");
+      setDraggedFromSheet("");
+      setDragOverSheet("");
+      return;
+    }
+    setRecords((current) =>
+      current.map((record) => {
+        if (record.id !== expertId) return record;
+        const withoutSource = getRecordSheetNames(record).filter(
+          (name) => name !== sourceSheet,
+        );
+        const sheetNames = [...new Set([...withoutSource, destinationSheet])];
+        return { ...record, sheetName: sheetNames[0], sheetNames };
+      }),
+    );
+    setDraggedExpertId("");
+    setDraggedFromSheet("");
+    setDragOverSheet("");
+  }
+
+  function removeExpertFromSheet(expertId: string, sheetName: string) {
+    setRecords((current) =>
+      current.map((record) => {
+        if (record.id !== expertId) return record;
+        const currentSheets = getRecordSheetNames(record);
+        if (currentSheets.length <= 1) return record;
+        const sheetNames = currentSheets.filter((name) => name !== sheetName);
+        return { ...record, sheetName: sheetNames[0], sheetNames };
+      }),
+    );
   }
 
   async function exportExcel() {
@@ -3096,10 +4809,11 @@ export default function Home() {
         records,
         sheetMode,
         singleSheetName,
+        customSheets,
       );
       const usedSheetNames = new Set<string>();
       const metaRows: string[][] = [];
-      const resolvedSheetNames = new Map<string, string>();
+      const resolvedSheetNames = new Map<string, string[]>();
 
       let expertSummarySheet: ReturnType<typeof workbook.addWorksheet> | null =
         null;
@@ -3424,7 +5138,9 @@ export default function Home() {
       sheet.getRow(2).height = 34;
 
       group.records.forEach((record, index) => {
-        resolvedSheetNames.set(record.id, sheetName);
+        resolvedSheetNames.set(record.id, [
+          ...new Set([...(resolvedSheetNames.get(record.id) ?? []), sheetName]),
+        ]);
         const rowNumber = index + 3;
         const values = [
           record.number,
@@ -3478,7 +5194,7 @@ export default function Home() {
             record.name,
             record.company,
             record.title,
-            resolvedSheetNames.get(record.id) ?? record.sheetName,
+            (resolvedSheetNames.get(record.id) ?? getRecordSheetNames(record)).join(" / "),
           ];
           values.forEach((value, valueIndex) => {
             const cell = expertSummarySheet?.getCell(
@@ -3563,45 +5279,31 @@ export default function Home() {
 
   if (activeTool === "navi") {
     return (
-      <TayaNaviPanel
-        theme={theme}
-        language={language}
-        onToggleTheme={changeTheme}
-        onLanguageChange={changeLanguage}
-        onSelectTool={setActiveTool}
-      />
-    );
-  }
-
-  if (!expertUnlocked) {
-    return (
-      <ExpertPasswordGate
-        active={activeTool}
-        theme={theme}
-        password={testerPassword}
-        error={passwordError}
-        checking={checkingPassword}
-        onPasswordChange={(value) => {
-          setTesterPassword(value);
-          if (passwordError) setPasswordError("");
-        }}
-        onSubmit={unlockExpert}
-        onToggleTheme={changeTheme}
-        onSelectTool={setActiveTool}
-      />
+      <>
+        <TayaNaviPanel
+          theme={theme}
+          language={language}
+          onToggleTheme={changeTheme}
+          onLanguageChange={changeLanguage}
+          onSelectTool={setActiveTool}
+        />
+        <BreakGame language={language} />
+      </>
     );
   }
 
   if (activeTool === "slack") {
     return (
-      <SlackFormatterPanel
-        theme={theme}
-        language={language}
-        onToggleTheme={changeTheme}
-        onLanguageChange={changeLanguage}
-        onSelectTool={setActiveTool}
-        onLock={lockExpert}
-      />
+      <>
+        <SlackFormatterPanel
+          theme={theme}
+          language={language}
+          onToggleTheme={changeTheme}
+          onLanguageChange={changeLanguage}
+          onSelectTool={setActiveTool}
+        />
+        <BreakGame language={language} />
+      </>
     );
   }
 
@@ -3650,15 +5352,6 @@ export default function Home() {
               <option value="zh_tw">中文（繁體）</option>
               <option value="mn">Монгол</option>
             </select>
-            <button
-              className="lock-toggle"
-              type="button"
-              onClick={lockExpert}
-              aria-label="Lock Expert Excel"
-              title="Lock Expert Excel"
-            >
-              🔒
-            </button>
             <button className="theme-toggle" type="button" onClick={changeTheme} aria-label="Toggle theme">
               {theme === "light" ? "🌙" : "☀️"}
             </button>
@@ -3777,46 +5470,6 @@ export default function Home() {
             )}
           </div>
 
-          {records.length > 0 && (
-            <div className="sheet-planner">
-              <label>
-                <span>{t.sheetPlanner}</span>
-                <select
-                  value={sheetMode}
-                  onChange={(event) => changeSheetMode(event.target.value as SheetMode)}
-                >
-                  <option value="single">{t.sheetModeSingle}</option>
-                  <option value="perExpert">{t.sheetModePerExpert}</option>
-                  <option value="custom">{t.sheetModeCustom}</option>
-                </select>
-              </label>
-              {sheetMode === "single" && (
-                <label>
-                  <span>{t.singleSheetName}</span>
-                  <input
-                    value={singleSheetName}
-                    onChange={(event) => setSingleSheetName(event.target.value)}
-                  />
-                </label>
-              )}
-              {sheetMode === "perExpert" && (
-                <p>{t.perExpertSheetHelp}</p>
-              )}
-              {sheetMode === "custom" && (
-                <div className="sheet-organizer-launch">
-                  <p>{t.customSheetHelp}</p>
-                  <button
-                    className="button button-secondary"
-                    type="button"
-                    onClick={() => setSheetOrganizerOpen(true)}
-                  >
-                    {t.openSheetOrganizer}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
           {workflowMode === "update" && comparisonItems.length > 0 && (
             <div className="comparison-review">
               <div className="comparison-heading">
@@ -3922,7 +5575,8 @@ export default function Home() {
                       <strong>{record.name || "Unnamed expert"}</strong>
                       <small>
                         {record.company || "Company not detected"}
-                        {sheetMode === "custom" && ` · ${record.sheetName || "Expert List"}`}
+                        {sheetMode === "custom" &&
+                          ` · ${getRecordSheetNames(record).join(" / ")}`}
                       </small>
                     </span>
                     {record.warnings.length > 0 && (
@@ -3974,6 +5628,172 @@ export default function Home() {
                 </details>
               ))}
             </div>
+          )}
+
+          {records.length > 0 && sheetMode === "custom" && (
+            <section className="sheet-organizer-inline" aria-labelledby="sheet-organizer-title">
+              <div className="sheet-inline-header">
+                <div>
+                  <span className="eyebrow">TAYA TOOL</span>
+                  <h3 id="sheet-organizer-title">{t.organizerTitle}</h3>
+                  <p>{t.organizerHelp}</p>
+                </div>
+                <div className="sheet-add-row">
+                  <input
+                    value={newSheetName}
+                    onChange={(event) => setNewSheetName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") addCustomSheet();
+                    }}
+                    placeholder={t.newSheetPlaceholder}
+                  />
+                  <button className="button button-secondary" type="button" onClick={addCustomSheet}>
+                    ＋ {t.addSheet}
+                  </button>
+                </div>
+              </div>
+
+              <div className="sheet-board">
+                {customSheets.map((sheetName) => {
+                  const sheetExperts = records.filter((record) =>
+                    getRecordSheetNames(record).includes(sheetName),
+                  );
+                  const availableExperts = records.filter(
+                    (record) => !getRecordSheetNames(record).includes(sheetName),
+                  );
+                  return (
+                    <div
+                      className={`sheet-column ${dragOverSheet === sheetName ? "is-over" : ""}`}
+                      key={sheetName}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        setDragOverSheet(sheetName);
+                      }}
+                      onDragLeave={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                          setDragOverSheet("");
+                        }
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        if (draggedExpertId) {
+                          moveExpertToSheet(
+                            draggedExpertId,
+                            draggedFromSheet,
+                            sheetName,
+                          );
+                        }
+                      }}
+                    >
+                      <div className="sheet-column-header">
+                        <input
+                          defaultValue={sheetName}
+                          aria-label={t.singleSheetName}
+                          onBlur={(event) => renameCustomSheet(sheetName, event.target.value)}
+                        />
+                        <span>{sheetExperts.length}</span>
+                      </div>
+
+                      <label className="sheet-copy-control">
+                        <span>{t.copyExpert}</span>
+                        <select
+                          value=""
+                          disabled={!availableExperts.length}
+                          onChange={(event) => {
+                            if (event.target.value) copyExpertToSheet(event.target.value, sheetName);
+                          }}
+                        >
+                          <option value="">{t.selectExpert}</option>
+                          {availableExperts.map((record) => (
+                            <option key={record.id} value={record.id}>
+                              {record.number} · {record.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <div className="sheet-drop-zone">
+                        {sheetExperts.length ? (
+                          sheetExperts.map((record) => {
+                            const recordSheets = getRecordSheetNames(record);
+                            const copyTargets = customSheets.filter(
+                              (name) => !recordSheets.includes(name),
+                            );
+                            return (
+                              <article
+                                className={`drag-expert ${draggedExpertId === record.id ? "is-dragging" : ""}`}
+                                draggable
+                                key={record.id}
+                                onDragStart={() => {
+                                  setDraggedExpertId(record.id);
+                                  setDraggedFromSheet(sheetName);
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedExpertId("");
+                                  setDraggedFromSheet("");
+                                  setDragOverSheet("");
+                                }}
+                              >
+                                <span className="drag-handle" aria-hidden="true">⠿</span>
+                                <div className="drag-expert-summary">
+                                  <strong>{record.name || "Unnamed expert"}</strong>
+                                  <small>{record.number} · {record.company}</small>
+                                </div>
+                                <div className="drag-expert-actions">
+                                  <em>{t.dragHint}</em>
+                                  <select
+                                    className="copy-expert-action"
+                                    value=""
+                                    disabled={!copyTargets.length}
+                                    aria-label={`${t.copyToSheet}: ${record.name}`}
+                                    title={t.copyToSheet}
+                                    onChange={(event) => {
+                                      if (event.target.value) {
+                                        copyExpertToSheet(record.id, event.target.value);
+                                      }
+                                    }}
+                                  >
+                                    <option value="">{t.copyAction}</option>
+                                    {copyTargets.map((targetSheet) => (
+                                      <option key={targetSheet} value={targetSheet}>
+                                        {targetSheet}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {recordSheets.length > 1 && (
+                                    <button
+                                      className="remove-sheet-expert"
+                                      type="button"
+                                      title={t.removeFromSheet}
+                                      aria-label={`${t.removeFromSheet}: ${record.name}`}
+                                      onClick={() => removeExpertFromSheet(record.id, sheetName)}
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </div>
+                              </article>
+                            );
+                          })
+                        ) : (
+                          <div className="sheet-empty">{t.emptySheet}</div>
+                        )}
+                      </div>
+
+                      {customSheets.length > 1 && !sheetExperts.length && (
+                        <button
+                          className="delete-sheet"
+                          type="button"
+                          onClick={() => deleteCustomSheet(sheetName)}
+                        >
+                          {t.deleteSheet}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           )}
         </section>
 
@@ -4102,133 +5922,8 @@ export default function Home() {
         <footer>Taya Tool · LinkedIn search & Expert Excel</footer>
       </div>
 
-      {sheetOrganizerOpen && sheetMode === "custom" && (
-        <div
-          className="sheet-modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setSheetOrganizerOpen(false);
-          }}
-        >
-          <section
-            className="sheet-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="sheet-organizer-title"
-          >
-            <div className="sheet-modal-header">
-              <div>
-                <span className="eyebrow">TAYA TOOL</span>
-                <h2 id="sheet-organizer-title">{t.organizerTitle}</h2>
-                <p>{t.organizerHelp}</p>
-              </div>
-              <button
-                className="modal-close"
-                type="button"
-                onClick={() => setSheetOrganizerOpen(false)}
-                aria-label={t.done}
-              >
-                ×
-              </button>
-            </div>
+      <BreakGame language={language} />
 
-            <div className="sheet-add-row">
-              <input
-                value={newSheetName}
-                onChange={(event) => setNewSheetName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") addCustomSheet();
-                }}
-                placeholder={t.newSheetPlaceholder}
-              />
-              <button className="button button-secondary" type="button" onClick={addCustomSheet}>
-                ＋ {t.addSheet}
-              </button>
-            </div>
-
-            <div className="sheet-board">
-              {customSheets.map((sheetName) => {
-                const sheetExperts = records.filter(
-                  (record) => record.sheetName === sheetName,
-                );
-                return (
-                  <div
-                    className={`sheet-column ${dragOverSheet === sheetName ? "is-over" : ""}`}
-                    key={sheetName}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setDragOverSheet(sheetName);
-                    }}
-                    onDragLeave={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-                        setDragOverSheet("");
-                      }
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      if (draggedExpertId) moveExpertToSheet(draggedExpertId, sheetName);
-                    }}
-                  >
-                    <div className="sheet-column-header">
-                      <input
-                        defaultValue={sheetName}
-                        aria-label={t.singleSheetName}
-                        onBlur={(event) => renameCustomSheet(sheetName, event.target.value)}
-                      />
-                      <span>{sheetExperts.length}</span>
-                    </div>
-
-                    <div className="sheet-drop-zone">
-                      {sheetExperts.length ? (
-                        sheetExperts.map((record) => (
-                          <article
-                            className={`drag-expert ${draggedExpertId === record.id ? "is-dragging" : ""}`}
-                            draggable
-                            key={record.id}
-                            onDragStart={() => setDraggedExpertId(record.id)}
-                            onDragEnd={() => {
-                              setDraggedExpertId("");
-                              setDragOverSheet("");
-                            }}
-                          >
-                            <span className="drag-handle" aria-hidden="true">⠿</span>
-                            <div>
-                              <strong>{record.name || "Unnamed expert"}</strong>
-                              <small>{record.number} · {record.company}</small>
-                            </div>
-                            <em>{t.dragHint}</em>
-                          </article>
-                        ))
-                      ) : (
-                        <div className="sheet-empty">{t.emptySheet}</div>
-                      )}
-                    </div>
-
-                    {customSheets.length > 1 && !sheetExperts.length && (
-                      <button
-                        className="delete-sheet"
-                        type="button"
-                        onClick={() => deleteCustomSheet(sheetName)}
-                      >
-                        {t.deleteSheet}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="sheet-modal-footer">
-              <button
-                className="button button-primary"
-                type="button"
-                onClick={() => setSheetOrganizerOpen(false)}
-              >
-                {t.done}
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   );
 }
