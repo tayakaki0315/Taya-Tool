@@ -1200,13 +1200,20 @@ function parseSlackExperts(raw: string) {
     .filter((record): record is SlackExpertRecord => Boolean(record));
 }
 
-function formatSlackExpertBody(record: SlackExpertRecord) {
+function formatSlackExpertBody(
+  record: SlackExpertRecord,
+  screeningStyle: "code" | "canvas" = "code",
+) {
   const parts: string[] = [];
   if (record.introduction) parts.push(record.introduction);
 
   const screening = record.screeningText.trim();
   if (screening) {
-    parts.push(`\`\`\`\n${record.screeningLabel}\n\n${screening}\n\`\`\``);
+    parts.push(
+      screeningStyle === "code"
+        ? `\`\`\`\n${record.screeningLabel}\n\n${screening}\n\`\`\``
+        : `*${record.screeningLabel}*\n\n${screening}`,
+    );
   }
 
   const history = slackHistoryItems(record.employmentHistory);
@@ -1222,7 +1229,9 @@ function formatSlackExpertBody(record: SlackExpertRecord) {
   if (availability.slots.length) {
     parts.push(
       `*${availability.heading}*\n\n${availability.slots
-        .map((slot) => `• \`${slot}\``)
+        .map((slot) =>
+          screeningStyle === "canvas" ? `• ${slot}` : `• \`${slot}\``,
+        )
         .join("\n")}`,
     );
   }
@@ -1273,7 +1282,14 @@ function slackHtmlText(value: string) {
   return escapeHtml(value).replace(/\n/g, "<br>");
 }
 
-function formatSlackExpertBodyHtml(record: SlackExpertRecord) {
+function canvasParagraphHtml(value: string) {
+  return `<p style="white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${slackHtmlText(value)}</p>`;
+}
+
+function formatSlackExpertBodyHtml(
+  record: SlackExpertRecord,
+  screeningStyle: "code" | "canvas" = "code",
+) {
   const blocks: string[] = [];
   if (record.introduction) {
     blocks.push(`<p>${slackHtmlText(record.introduction)}</p>`);
@@ -1281,9 +1297,27 @@ function formatSlackExpertBodyHtml(record: SlackExpertRecord) {
 
   const screening = record.screeningText.trim();
   if (screening) {
-    blocks.push(
-      `<pre>${escapeHtml(`${record.screeningLabel}\n\n${screening}`)}</pre>`,
-    );
+    if (screeningStyle === "code") {
+      blocks.push(
+        `<pre>${escapeHtml(`${record.screeningLabel}\n\n${screening}`)}</pre>`,
+      );
+    } else {
+      const screeningParagraphs = screening
+        .split(/\n{2,}/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+        .flatMap((paragraph) =>
+          paragraph
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean),
+        )
+        .map((line) => canvasParagraphHtml(line))
+        .join("");
+      blocks.push(
+        `<p style="white-space:normal;overflow-wrap:anywhere;word-break:break-word;"><strong>${escapeHtml(record.screeningLabel)}</strong></p>${screeningParagraphs}`,
+      );
+    }
   }
 
   const history = slackHistoryItems(record.employmentHistory);
@@ -1303,7 +1337,11 @@ function formatSlackExpertBodyHtml(record: SlackExpertRecord) {
   if (availability.slots.length) {
     blocks.push(
       `<p><strong>${escapeHtml(availability.heading)}</strong></p><ul>${availability.slots
-        .map((slot) => `<li><code>${escapeHtml(slot)}</code></li>`)
+        .map((slot) =>
+          screeningStyle === "canvas"
+            ? `<li>${escapeHtml(slot)}</li>`
+            : `<li><code>${escapeHtml(slot)}</code></li>`,
+        )
         .join("")}</ul>`,
     );
   }
@@ -1323,6 +1361,53 @@ function formatSlackExpertHtml(record: SlackExpertRecord) {
 function formatSlackExpertHtmlForCombinedCopy(record: SlackExpertRecord) {
   const header = `<p><strong>${escapeHtml(`${record.number} - ${record.name} - ✅${record.title}`)}</strong></p>`;
   const body = formatSlackExpertBodyHtml(record);
+  return `<div>${header}${body ? `<blockquote>${body}</blockquote>` : ""}</div>`;
+}
+
+function formatSlackExpertForCanvas(record: SlackExpertRecord) {
+  const parts = [`*${record.number} - ${record.name} - ✅${record.title}*`];
+
+  if (record.introduction) parts.push(record.introduction);
+
+  const screening = record.screeningText.trim();
+  if (screening) {
+    const callout = [`*${record.screeningLabel}*`, "", screening]
+      .join("\n")
+      .split("\n")
+      .map((line) => (line ? `> ${line}` : ">"))
+      .join("\n");
+    parts.push(callout);
+  }
+
+  const history = slackHistoryItems(record.employmentHistory);
+  if (history.length) {
+    parts.push(
+      `*Employment History*\n\n${history
+        .map(({ date, detail }) => `• ${[date, detail].filter(Boolean).join(" | ")}`)
+        .join("\n")}`,
+    );
+  }
+
+  const availability = slackAvailability(record);
+  if (availability.slots.length) {
+    parts.push(
+      `*${availability.heading}*\n\n${availability.slots
+        .map((slot) => `• \`${slot}\``)
+        .join("\n")}`,
+    );
+  }
+
+  if (record.location) {
+    parts.push(`This specialist is based in ${record.location}.`);
+  }
+  if (record.fee) parts.push(`*${record.fee}*`);
+
+  return parts.join("\n\n");
+}
+
+function formatSlackExpertHtmlForCanvas(record: SlackExpertRecord) {
+  const header = `<p><strong>${escapeHtml(`${record.number} - ${record.name} - ✅${record.title}`)}</strong></p>`;
+  const body = formatSlackExpertBodyHtml(record, "canvas");
   return `<div>${header}${body ? `<blockquote>${body}</blockquote>` : ""}</div>`;
 }
 
@@ -1346,6 +1431,22 @@ function formatSlackExpertListHtml(records: SlackExpertRecord[]) {
     .join("")}</ul></div>`;
 }
 
+function formatSlackCanvas(records: SlackExpertRecord[]) {
+  const expertDetails = records
+    .map((record) => formatSlackExpertForCanvas(record))
+    .join("\n\n\n");
+  return [formatSlackExpertList(records), expertDetails]
+    .filter(Boolean)
+    .join("\n\n\n");
+}
+
+function formatSlackCanvasHtml(records: SlackExpertRecord[]) {
+  const expertDetails = records
+    .map((record) => formatSlackExpertHtmlForCanvas(record))
+    .join("<br>");
+  return `<div>${formatSlackExpertListHtml(records)}<br>${expertDetails}</div>`;
+}
+
 async function writeSlackClipboard(plainText: string, html: string) {
   try {
     if (navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
@@ -1363,10 +1464,17 @@ async function writeSlackClipboard(plainText: string, html: string) {
   await navigator.clipboard.writeText(plainText);
 }
 
+async function writeCanvasClipboard(plainText: string) {
+  // Slack Canvas prioritises rich clipboard HTML and can turn long screening
+  // text into a horizontally scrolling code block. Plain text is intentional:
+  // it guarantees normal Canvas line wrapping.
+  await navigator.clipboard.writeText(plainText);
+}
+
 const slackTranslations = {
   en: {
     title: "Slack Expert Formatter",
-    version: "v1.6",
+    version: "v1.9",
     subtitle: "Turn multiple expert profiles into clean, copy-ready Slack posts.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     inputTitle: "1. Paste expert profiles",
@@ -1376,12 +1484,14 @@ const slackTranslations = {
     generate: "Create Slack posts",
     clear: "Clear all",
     results: "2. Copy to Slack",
-    resultsHelp: "Copy a short Expert List for the top of a Canvas. Copy all experts adds a quote bar to each expert's details.",
+    resultsHelp: "Canvas copy puts only Screening Questions in a callout and highlights availability as code.",
     empty: "Your Slack-ready expert posts will appear here.",
     copy: "Copy for Slack",
     copied: "Copied",
     copyAll: "Copy all experts",
     copiedAll: "All experts copied",
+    copyCanvas: "Copy for Canvas",
+    copiedCanvas: "Canvas copied",
     copyExpertList: "Copy expert list",
     copiedExpertList: "Expert list copied",
     found: "experts formatted",
@@ -1411,7 +1521,7 @@ const slackTranslations = {
   },
   ja: {
     title: "Slack Expert Formatter",
-    version: "v1.6",
+    version: "v1.9",
     subtitle: "複数のエキスパート情報を、Slackに貼り付けやすい形式へ整えます。",
     privacy: "入力内容はブラウザ内だけで処理され、アップロードや保存はされません。",
     inputTitle: "1. エキスパート情報を貼り付け",
@@ -1421,12 +1531,14 @@ const slackTranslations = {
     generate: "Slack用に整形",
     clear: "すべてクリア",
     results: "2. Slackへコピー",
-    resultsHelp: "Canvas冒頭用のExpert Listをコピーできます。全員コピーでは、各エキスパートの詳細を引用バーで区切ります。",
+    resultsHelp: "Canvas用コピーでは、Screening Questionsのみをcalloutにし、Availabilityをcode表示します。",
     empty: "整形したSlack投稿がここに表示されます。",
     copy: "Slack用にコピー",
     copied: "コピーしました",
     copyAll: "全員をコピー",
     copiedAll: "全員をコピーしました",
+    copyCanvas: "Canvas用にコピー",
+    copiedCanvas: "Canvas用にコピーしました",
     copyExpertList: "Expert Listをコピー",
     copiedExpertList: "Expert Listをコピーしました",
     found: "名を整形",
@@ -1456,7 +1568,7 @@ const slackTranslations = {
   },
   zh: {
     title: "Slack Expert Formatter",
-    version: "v1.6",
+    version: "v1.9",
     subtitle: "将多位专家信息整理成可直接复制到 Slack 的格式。",
     privacy: "所有内容只在浏览器中处理，不会上传或保存。",
     inputTitle: "1. 粘贴专家信息",
@@ -1466,12 +1578,14 @@ const slackTranslations = {
     generate: "生成 Slack 内容",
     clear: "全部清除",
     results: "2. 复制到 Slack",
-    resultsHelp: "可以复制适合放在Canvas开头的Expert List；复制全部专家时，每位专家的详情会显示独立引用栏。",
+    resultsHelp: "Canvas 复制仅将 Screening Questions 放入 callout，并用 code 格式突出 Availability。",
     empty: "生成后的 Slack 内容会显示在这里。",
     copy: "复制到 Slack",
     copied: "已复制",
     copyAll: "复制全部专家",
     copiedAll: "已复制全部专家",
+    copyCanvas: "复制 Canvas",
+    copiedCanvas: "Canvas 内容已复制",
     copyExpertList: "复制专家名单",
     copiedExpertList: "专家名单已复制",
     found: "位专家已生成",
@@ -1958,8 +2072,8 @@ type BreakGameKind =
   | "runner"
   | "snake"
   | "flappy"
-  | "breakout"
-  | "stack";
+  | "stack"
+  | "2048";
 
 type MemoryCard = {
   id: number;
@@ -2042,6 +2156,7 @@ type RunnerCopy = {
   time: string;
   best: string;
   restart: string;
+  level: string;
 };
 
 const INITIAL_RUNNER: RunnerState = {
@@ -2056,6 +2171,37 @@ const INITIAL_RUNNER: RunnerState = {
 
 function formatRunnerTime(milliseconds: number) {
   return `${(milliseconds / 1000).toFixed(1)}s`;
+}
+
+type ArcadeLevel = 1 | 2 | 3;
+
+function getArcadeLevel(score: number, level2At: number, level3At: number): ArcadeLevel {
+  if (score >= level3At) return 3;
+  if (score >= level2At) return 2;
+  return 1;
+}
+
+function ArcadeLevelBadge({
+  score,
+  level2At,
+  level3At,
+  label,
+}: {
+  score: number;
+  level2At: number;
+  level3At: number;
+  label: string;
+}) {
+  const level = getArcadeLevel(score, level2At, level3At);
+  const nextLevelAt = level === 1 ? level2At : level === 2 ? level3At : null;
+
+  return (
+    <span key={level} className={`taya-arcade-level is-level-${level}`}>
+      <strong>{label} {level}</strong>
+      {nextLevelAt !== null && <small>{score}/{nextLevelAt}</small>}
+      {nextLevelAt === null && <small>MAX</small>}
+    </span>
+  );
 }
 
 function jumpRunner(current: RunnerState): RunnerState {
@@ -2090,11 +2236,17 @@ function TayaRunner({ copy }: { copy: RunnerCopy }) {
 
         let obstacleX = current.obstacleX - current.speed * delta;
         let passed = current.passed;
-        let speed = Math.min(78, current.speed + delta * 1.15);
+        const level = getArcadeLevel(current.passed, 5, 12);
+        const speedCap = level === 1 ? 45 : level === 2 ? 61 : 80;
+        const acceleration = level === 1 ? 0.75 : level === 2 ? 1.05 : 1.4;
+        let speed = Math.min(speedCap, current.speed + delta * acceleration);
         if (obstacleX < -10) {
           obstacleX = 104 + randomBreakIndex(18);
           passed += 1;
-          speed = Math.min(78, speed + 1.8);
+          const nextLevel = getArcadeLevel(passed, 5, 12);
+          const nextCap = nextLevel === 1 ? 45 : nextLevel === 2 ? 61 : 80;
+          const speedStep = nextLevel === 1 ? 1.25 : nextLevel === 2 ? 1.7 : 2.15;
+          speed = Math.min(nextCap, speed + speedStep);
         }
 
         const collided = obstacleX < 23 && obstacleX > 8 && playerY < 20;
@@ -2160,6 +2312,7 @@ function TayaRunner({ copy }: { copy: RunnerCopy }) {
           if (event.detail === 0) handleRunnerAction();
         }}
       >
+        <ArcadeLevelBadge score={runner.passed} level2At={5} level3At={12} label={copy.level} />
         <span className="taya-runner-hud">
           <span>{copy.time} <strong>{formatRunnerTime(runner.elapsed)}</strong></span>
           <span>{copy.best} <strong>{formatRunnerTime(bestTime)}</strong></span>
@@ -2219,6 +2372,7 @@ type SnakeCopy = {
   down: string;
   left: string;
   right: string;
+  level: string;
 };
 
 const SNAKE_WIDTH = 14;
@@ -2312,7 +2466,13 @@ function TayaSnake({ copy }: { copy: SnakeCopy }) {
 
   useEffect(() => {
     if (game.status !== "running") return;
-    const delay = Math.max(72, 158 - game.score * 6);
+    const level = getArcadeLevel(game.score, 4, 8);
+    const delay =
+      level === 1
+        ? Math.max(145, 170 - game.score * 6)
+        : level === 2
+          ? Math.max(105, 128 - (game.score - 4) * 5)
+          : Math.max(68, 92 - (game.score - 8) * 3);
     const timer = window.setInterval(() => setGame((current) => advanceSnake(current)), delay);
     return () => window.clearInterval(timer);
   }, [game.score, game.status]);
@@ -2352,6 +2512,7 @@ function TayaSnake({ copy }: { copy: SnakeCopy }) {
   return (
     <div className="taya-snake-shell">
       <div className="taya-snake-hud">
+        <ArcadeLevelBadge score={game.score} level2At={4} level3At={8} label={copy.level} />
         <span>{copy.score} <strong>{game.score}</strong></span>
         <span>{copy.best} <strong>{bestScore}</strong></span>
       </div>
@@ -2405,6 +2566,7 @@ type FlappyCopy = {
   best: string;
   restart: string;
   flap: string;
+  level: string;
 };
 
 const FLAPPY_BEST_KEY = "tayaFlappyBestV1";
@@ -2445,7 +2607,14 @@ function TayaFlappy({ copy }: { copy: FlappyCopy }) {
 
         const nextVelocity = current.velocity + 73 * delta;
         const birdY = current.birdY + nextVelocity * delta;
-        let pipeX = current.pipeX - Math.min(44, 25 + current.score * 1.35) * delta;
+        const level = getArcadeLevel(current.score, 4, 8);
+        const pipeSpeed =
+          level === 1
+            ? 24 + current.score * 0.75
+            : level === 2
+              ? 31 + (current.score - 4) * 0.85
+              : Math.min(46, 39 + (current.score - 8) * 0.7);
+        let pipeX = current.pipeX - pipeSpeed * delta;
         let gapY = current.gapY;
         let score = current.score;
 
@@ -2455,9 +2624,10 @@ function TayaFlappy({ copy }: { copy: FlappyCopy }) {
           score += 1;
         }
 
+        const gapSize = level === 1 ? 35 : level === 2 ? 29 : 24;
         const pipeNearBird = pipeX < 31 && pipeX > 17;
-        const gapTop = gapY - 16;
-        const gapBottom = gapY + 16;
+        const gapTop = gapY - gapSize / 2;
+        const gapBottom = gapY + gapSize / 2;
         const hitPipe = pipeNearBird && (birdY < gapTop || birdY + 7 > gapBottom);
         const hitEdge = birdY < 0 || birdY > 91;
 
@@ -2507,8 +2677,10 @@ function TayaFlappy({ copy }: { copy: FlappyCopy }) {
     setGame((current) => flapBird(current));
   }
 
-  const gapTop = Math.max(8, game.gapY - 16);
-  const gapBottom = Math.min(92, game.gapY + 16);
+  const flappyLevel = getArcadeLevel(game.score, 4, 8);
+  const visibleGapSize = flappyLevel === 1 ? 35 : flappyLevel === 2 ? 29 : 24;
+  const gapTop = Math.max(8, game.gapY - visibleGapSize / 2);
+  const gapBottom = Math.min(92, game.gapY + visibleGapSize / 2);
 
   return (
     <div className="taya-flappy-shell">
@@ -2524,6 +2696,7 @@ function TayaFlappy({ copy }: { copy: FlappyCopy }) {
           if (event.detail === 0) handleFlappyAction();
         }}
       >
+        <ArcadeLevelBadge score={game.score} level2At={4} level3At={8} label={copy.level} />
         <span className="taya-arcade-hud">
           <span>{copy.score} <strong>{game.score}</strong></span>
           <span>{copy.best} <strong>{bestScore}</strong></span>
@@ -2555,62 +2728,114 @@ function TayaFlappy({ copy }: { copy: FlappyCopy }) {
   );
 }
 
-type BreakoutStatus = "ready" | "running" | "over" | "won";
+type MetroAction = "run" | "jump" | "slide";
+type MetroObstacleKind = "train" | "barrier" | "gate";
 
-type BreakoutState = {
-  status: BreakoutStatus;
-  paddleX: number;
-  ballX: number;
-  ballY: number;
-  velocityX: number;
-  velocityY: number;
-  bricks: number[];
-  elapsed: number;
+type MetroObstacle = {
+  id: number;
+  lane: 0 | 1 | 2;
+  y: number;
+  kind: MetroObstacleKind;
 };
 
-type BreakoutCopy = {
+type MetroState = {
+  status: "ready" | "running" | "over";
+  lane: 0 | 1 | 2;
+  action: MetroAction;
+  actionUntil: number;
+  obstacles: MetroObstacle[];
+  spawnIn: number;
+  nextObstacleId: number;
+  score: number;
+};
+
+type MetroCopy = {
   start: string;
   gameOver: string;
-  cleared: string;
-  time: string;
+  score: string;
   best: string;
   restart: string;
   left: string;
   right: string;
+  jump: string;
+  slide: string;
+  jumpLabel: string;
+  slideLabel: string;
+  switchLabel: string;
+  nextLabel: string;
+  level: string;
 };
 
-const BREAKOUT_COLUMNS = 8;
-const BREAKOUT_ROWS = 4;
-const BREAKOUT_BEST_KEY = "tayaBreakoutBestMsV1";
+const METRO_BEST_KEY = "tayaMetroBestV1";
+const METRO_LEVEL_2_SCORE = 5;
+const METRO_LEVEL_3_SCORE = 12;
 
-function createBreakoutState(status: BreakoutStatus = "ready"): BreakoutState {
+function metroObstacleKinds(level: ArcadeLevel): MetroObstacleKind[] {
+  if (level === 1) return ["barrier", "gate", "train"];
+  if (level === 2) return ["barrier", "gate", "train", "train"];
+  return ["train", "barrier", "gate", "train", "gate"];
+}
+
+function createMetroWave(score: number, nextObstacleId: number) {
+  const level = getArcadeLevel(score, METRO_LEVEL_2_SCORE, METRO_LEVEL_3_SCORE);
+  const doubleWaveChance = level === 1 ? 0 : level === 2 ? 0.26 : 0.54;
+  const obstacleCount = Math.random() < doubleWaveChance ? 2 : 1;
+  const lanes = shuffled([0, 1, 2] as Array<0 | 1 | 2>).slice(0, obstacleCount);
+  const kinds = metroObstacleKinds(level);
+  const obstacles = lanes.map((lane, index) => ({
+    id: nextObstacleId + index,
+    lane,
+    y: -16,
+    kind: kinds[randomBreakIndex(kinds.length)],
+  }));
+  return { obstacles, nextObstacleId: nextObstacleId + obstacles.length };
+}
+
+function metroSpawnDelay(level: ArcadeLevel) {
+  const randomDelay = Math.random() * (level === 1 ? 0.22 : level === 2 ? 0.16 : 0.1);
+  if (level === 1) return 1.46 + randomDelay;
+  if (level === 2) return 0.98 + randomDelay;
+  return 0.68 + randomDelay;
+}
+
+function createMetroState(status: MetroState["status"] = "ready"): MetroState {
+  const firstWave = createMetroWave(0, 1);
   return {
     status,
-    paddleX: 40,
-    ballX: 50,
-    ballY: 81,
-    velocityX: 27,
-    velocityY: -34,
-    bricks: Array.from({ length: BREAKOUT_COLUMNS * BREAKOUT_ROWS }, (_, index) => index),
-    elapsed: 0,
+    lane: 1,
+    action: "run",
+    actionUntil: 0,
+    obstacles: firstWave.obstacles,
+    spawnIn: 1.35,
+    nextObstacleId: firstWave.nextObstacleId,
+    score: 0,
   };
 }
 
-function formatArcadeTime(milliseconds: number) {
-  return milliseconds > 0 ? `${(milliseconds / 1000).toFixed(1)}s` : "—";
+function moveMetroLane(current: MetroState, amount: -1 | 1): MetroState {
+  if (current.status !== "running") return current;
+  return { ...current, lane: Math.max(0, Math.min(2, current.lane + amount)) as 0 | 1 | 2 };
 }
 
-function moveBreakoutPaddle(current: BreakoutState, amount: number): BreakoutState {
-  return { ...current, paddleX: Math.max(0, Math.min(80, current.paddleX + amount)) };
+function setMetroAction(current: MetroState, action: Exclude<MetroAction, "run">): MetroState {
+  if (current.status !== "running") return current;
+  const duration = action === "jump" ? 720 : 590;
+  return { ...current, action, actionUntil: window.performance.now() + duration };
 }
 
-function TayaBreakout({ copy }: { copy: BreakoutCopy }) {
-  const [game, setGame] = useState<BreakoutState>(() => createBreakoutState());
-  const [bestTime, setBestTime] = useState(0);
+function metroLanePosition(lane: number, y: number) {
+  const spread = 15 + Math.max(0, Math.min(100, y)) * 0.18;
+  return 50 + (lane - 1) * spread;
+}
+
+function TayaMetro({ copy }: { copy: MetroCopy }) {
+  const [game, setGame] = useState<MetroState>(() => createMetroState());
+  const [bestScore, setBestScore] = useState(0);
+  const [swipeStart, setSwipeStart] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    const saved = Number(window.localStorage.getItem(BREAKOUT_BEST_KEY) || 0);
-    const timer = window.setTimeout(() => setBestTime(Number.isFinite(saved) ? saved : 0), 0);
+    const saved = Number(window.localStorage.getItem(METRO_BEST_KEY) || 0);
+    const timer = window.setTimeout(() => setBestScore(Number.isFinite(saved) ? saved : 0), 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -2625,56 +2850,40 @@ function TayaBreakout({ copy }: { copy: BreakoutCopy }) {
       setGame((current) => {
         if (current.status !== "running") return current;
 
-        let ballX = current.ballX + current.velocityX * delta;
-        let ballY = current.ballY + current.velocityY * delta;
-        let velocityX = current.velocityX;
-        let velocityY = current.velocityY;
-        let bricks = current.bricks;
-
-        if (ballX <= 1.5 || ballX >= 98.5) {
-          ballX = Math.max(1.5, Math.min(98.5, ballX));
-          velocityX *= -1;
-        }
-        if (ballY <= 1.5) {
-          ballY = 1.5;
-          velocityY = Math.abs(velocityY);
-        }
-
-        const hitPaddle =
-          velocityY > 0 &&
-          ballY >= 86 &&
-          ballY <= 91 &&
-          ballX >= current.paddleX - 1 &&
-          ballX <= current.paddleX + 21;
-        if (hitPaddle) {
-          ballY = 85.5;
-          velocityY = -Math.abs(velocityY);
-          const paddleOffset = (ballX - (current.paddleX + 10)) / 10;
-          velocityX = Math.max(-42, Math.min(42, velocityX + paddleOffset * 13));
-        }
-
-        const hitBrick = current.bricks.find((brick) => {
-          const row = Math.floor(brick / BREAKOUT_COLUMNS);
-          const column = brick % BREAKOUT_COLUMNS;
-          const left = 2 + column * 12;
-          const top = 8 + row * 9;
-          return ballX >= left && ballX <= left + 10.5 && ballY >= top && ballY <= top + 5.8;
+        const level = getArcadeLevel(current.score, METRO_LEVEL_2_SCORE, METRO_LEVEL_3_SCORE);
+        const speed = level === 1 ? 39 : level === 2 ? 51 : 66;
+        const action = current.actionUntil > now ? current.action : "run";
+        const movedObstacles = current.obstacles.map((obstacle) => ({
+          ...obstacle,
+          y: obstacle.y + speed * delta,
+        }));
+        const collided = movedObstacles.some((obstacle) => {
+          const sameLane = obstacle.lane === current.lane;
+          const inCollisionZone = obstacle.y >= 75 && obstacle.y <= 98;
+          const avoidedByAction =
+            (obstacle.kind === "barrier" && action === "jump") ||
+            (obstacle.kind === "gate" && action === "slide");
+          return sameLane && inCollisionZone && !avoidedByAction;
         });
 
-        if (hitBrick !== undefined) {
-          bricks = current.bricks.filter((brick) => brick !== hitBrick);
-          velocityY *= -1;
+        if (collided) {
+          return { ...current, status: "over", action, obstacles: movedObstacles };
         }
 
-        const elapsed = current.elapsed + delta * 1000;
-        if (bricks.length === 0) {
-          return { ...current, status: "won", ballX, ballY, velocityX, velocityY, bricks, elapsed };
-        }
-        if (ballY > 100) {
-          return { ...current, status: "over", ballX, ballY, velocityX, velocityY, bricks, elapsed };
+        const passed = movedObstacles.filter((obstacle) => obstacle.y > 112).length;
+        const score = current.score + passed;
+        let obstacles = movedObstacles.filter((obstacle) => obstacle.y <= 112);
+        let spawnIn = current.spawnIn - delta;
+        let nextObstacleId = current.nextObstacleId;
+        if (spawnIn <= 0) {
+          const nextLevel = getArcadeLevel(score, METRO_LEVEL_2_SCORE, METRO_LEVEL_3_SCORE);
+          const wave = createMetroWave(score, nextObstacleId);
+          obstacles = [...obstacles, ...wave.obstacles];
+          nextObstacleId = wave.nextObstacleId;
+          spawnIn = metroSpawnDelay(nextLevel);
         }
 
-        return { ...current, ballX, ballY, velocityX, velocityY, bricks, elapsed };
+        return { ...current, action, obstacles, spawnIn, nextObstacleId, score };
       });
       animationFrame = window.requestAnimationFrame(tick);
     }
@@ -2684,73 +2893,141 @@ function TayaBreakout({ copy }: { copy: BreakoutCopy }) {
   }, [game.status]);
 
   useEffect(() => {
-    if (game.status !== "won" || (bestTime > 0 && game.elapsed >= bestTime)) return;
-    window.localStorage.setItem(BREAKOUT_BEST_KEY, String(game.elapsed));
-    const timer = window.setTimeout(() => setBestTime(game.elapsed), 0);
+    if (game.status !== "over" || game.score <= bestScore) return;
+    window.localStorage.setItem(METRO_BEST_KEY, String(game.score));
+    const timer = window.setTimeout(() => setBestScore(game.score), 0);
     return () => window.clearTimeout(timer);
-  }, [bestTime, game.elapsed, game.status]);
+  }, [bestScore, game.score, game.status]);
 
   useEffect(() => {
     if (game.status !== "running") return;
-    function controlBreakout(event: KeyboardEvent) {
-      if (event.code !== "ArrowLeft" && event.code !== "KeyA" && event.code !== "ArrowRight" && event.code !== "KeyD") return;
+    function controlMetro(event: KeyboardEvent) {
+      const handled = ["ArrowLeft", "KeyA", "ArrowRight", "KeyD", "ArrowUp", "KeyW", "Space", "ArrowDown", "KeyS"];
+      if (!handled.includes(event.code)) return;
       event.preventDefault();
-      const amount = event.code === "ArrowLeft" || event.code === "KeyA" ? -7 : 7;
-      setGame((current) => moveBreakoutPaddle(current, amount));
+      if (event.code === "ArrowLeft" || event.code === "KeyA") {
+        setGame((current) => moveMetroLane(current, -1));
+      } else if (event.code === "ArrowRight" || event.code === "KeyD") {
+        setGame((current) => moveMetroLane(current, 1));
+      } else if (event.code === "ArrowDown" || event.code === "KeyS") {
+        setGame((current) => setMetroAction(current, "slide"));
+      } else {
+        setGame((current) => setMetroAction(current, "jump"));
+      }
     }
-    window.addEventListener("keydown", controlBreakout);
-    return () => window.removeEventListener("keydown", controlBreakout);
+    window.addEventListener("keydown", controlMetro);
+    return () => window.removeEventListener("keydown", controlMetro);
   }, [game.status]);
 
-  function startBreakout() {
-    setGame(createBreakoutState("running"));
+  function startMetro() {
+    setGame(createMetroState("running"));
+  }
+
+  const playerLeft = metroLanePosition(game.lane, 100);
+  const nextObstacle = [...game.obstacles]
+    .filter((obstacle) => obstacle.y < 96)
+    .sort((first, second) => second.y - first.y)[0];
+
+  function obstacleActionLabel(kind: MetroObstacleKind) {
+    if (kind === "barrier") return `↑ ${copy.jumpLabel}`;
+    if (kind === "gate") return `↓ ${copy.slideLabel}`;
+    return `↔ ${copy.switchLabel}`;
+  }
+
+  function handleMetroSwipe(endX: number, endY: number) {
+    if (!swipeStart || game.status !== "running") {
+      setSwipeStart(null);
+      return;
+    }
+    const deltaX = endX - swipeStart.x;
+    const deltaY = endY - swipeStart.y;
+    setSwipeStart(null);
+    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 24) return;
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      setGame((current) => moveMetroLane(current, deltaX < 0 ? -1 : 1));
+    } else {
+      setGame((current) => setMetroAction(current, deltaY < 0 ? "jump" : "slide"));
+    }
   }
 
   return (
-    <div className="taya-breakout-shell">
+    <div className="taya-metro-shell">
+      <ArcadeLevelBadge
+        score={game.score}
+        level2At={METRO_LEVEL_2_SCORE}
+        level3At={METRO_LEVEL_3_SCORE}
+        label={copy.level}
+      />
       <div className="taya-arcade-hud">
-        <span>{copy.time} <strong>{formatArcadeTime(game.elapsed)}</strong></span>
-        <span>{copy.best} <strong>{formatArcadeTime(bestTime)}</strong></span>
+        <span>{copy.score} <strong>{game.score}</strong></span>
+        <span>{copy.best} <strong>{bestScore}</strong></span>
       </div>
       <div
-        className="taya-breakout-stage"
+        className={`taya-metro-stage is-${game.status} level-${getArcadeLevel(game.score, METRO_LEVEL_2_SCORE, METRO_LEVEL_3_SCORE)}`}
         role="application"
-        aria-label="Taya Breakout"
-        onPointerMove={(event) => {
-          if (game.status !== "running") return;
-          const bounds = event.currentTarget.getBoundingClientRect();
-          const nextX = ((event.clientX - bounds.left) / bounds.width) * 100 - 10;
-          setGame((current) => ({ ...current, paddleX: Math.max(0, Math.min(80, nextX)) }));
-        }}
+        aria-label="Taya Metro Rush"
+        onPointerDown={(event) => setSwipeStart({ x: event.clientX, y: event.clientY })}
+        onPointerUp={(event) => handleMetroSwipe(event.clientX, event.clientY)}
+        onPointerCancel={() => setSwipeStart(null)}
       >
-        {Array.from({ length: BREAKOUT_COLUMNS * BREAKOUT_ROWS }, (_, brick) => {
-          const row = Math.floor(brick / BREAKOUT_COLUMNS);
-          const column = brick % BREAKOUT_COLUMNS;
+        <span className="taya-metro-skyline" aria-hidden="true" />
+        <span className="taya-metro-track" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+        {nextObstacle && game.status === "running" && (
+          <span className={`taya-metro-next is-${nextObstacle.kind}`}>
+            <small>{copy.nextLabel}</small>
+            <strong>{obstacleActionLabel(nextObstacle.kind)}</strong>
+          </span>
+        )}
+        {game.obstacles.map((obstacle) => {
+          const obstacleScale = 0.56 + Math.max(0, Math.min(116, obstacle.y + 16)) / 116 * 0.94;
+          const obstacleLeft = metroLanePosition(obstacle.lane, obstacle.y);
           return (
             <span
-              key={brick}
-              className={`taya-breakout-brick tone-${row + 1} ${game.bricks.includes(brick) ? "" : "is-cleared"}`}
-              style={{ left: `${2 + column * 12}%`, top: `${8 + row * 9}%` }}
+              key={obstacle.id}
+              className={`taya-metro-obstacle is-${obstacle.kind}`}
+              style={{
+                left: `${obstacleLeft}%`,
+                top: `${obstacle.y}%`,
+                transform: `translate(-50%, -50%) scale(${obstacleScale})`,
+              }}
               aria-hidden="true"
-            />
+            >
+              {obstacle.kind === "train" ? <><b /><b /></> : obstacle.kind === "gate" ? <b /> : null}
+              <em>{obstacleActionLabel(obstacle.kind)}</em>
+            </span>
           );
         })}
-        <span className="taya-breakout-ball" style={{ left: `${game.ballX}%`, top: `${game.ballY}%` }} aria-hidden="true" />
-        <span className="taya-breakout-paddle" style={{ left: `${game.paddleX}%` }} aria-hidden="true" />
+        <span
+          className={`taya-metro-player is-${game.action}`}
+          style={{ left: `${playerLeft}%` }}
+          aria-hidden="true"
+        >
+          <b>T</b>
+        </span>
         {game.status !== "running" && (
           <div className="taya-arcade-overlay">
-            <strong>{game.status === "won" ? copy.cleared : game.status === "over" ? copy.gameOver : "TAYA BREAKOUT"}</strong>
-            {(game.status === "won" || game.status === "over") && <em>{copy.time}: {formatArcadeTime(game.elapsed)}</em>}
-            <button type="button" onClick={startBreakout}>
+            <strong>{game.status === "over" ? copy.gameOver : "TAYA METRO RUSH"}</strong>
+            {game.status === "over" && <em>{copy.score}: {game.score}</em>}
+            <div className="taya-metro-instructions" aria-label="How to play">
+              <span className="is-jump"><b>↑</b><small>{copy.jumpLabel}</small></span>
+              <span className="is-slide"><b>↓</b><small>{copy.slideLabel}</small></span>
+              <span className="is-switch"><b>↔</b><small>{copy.switchLabel}</small></span>
+            </div>
+            <button type="button" onClick={startMetro}>
               {game.status === "ready" ? copy.start : copy.restart}
             </button>
           </div>
         )}
       </div>
-      <div className="taya-breakout-controls">
-        <button type="button" aria-label={copy.left} onClick={() => setGame((current) => moveBreakoutPaddle(current, -8))}>←</button>
-        <button type="button" onClick={startBreakout}>{game.status === "running" ? "↻" : copy.start}</button>
-        <button type="button" aria-label={copy.right} onClick={() => setGame((current) => moveBreakoutPaddle(current, 8))}>→</button>
+      <div className="taya-metro-controls" aria-label="Metro controls">
+        <button type="button" aria-label={copy.left} onClick={() => setGame((current) => moveMetroLane(current, -1))}><b>←</b><small>{copy.switchLabel}</small></button>
+        <button className="is-jump" type="button" aria-label={copy.jump} onClick={() => setGame((current) => setMetroAction(current, "jump"))}><b>↑</b><small>{copy.jumpLabel}</small></button>
+        <button className="is-slide" type="button" aria-label={copy.slide} onClick={() => setGame((current) => setMetroAction(current, "slide"))}><b>↓</b><small>{copy.slideLabel}</small></button>
+        <button type="button" aria-label={copy.right} onClick={() => setGame((current) => moveMetroLane(current, 1))}><b>→</b><small>{copy.switchLabel}</small></button>
       </div>
     </div>
   );
@@ -2777,6 +3054,7 @@ type StackCopy = {
   best: string;
   restart: string;
   drop: string;
+  level: string;
 };
 
 const STACK_BEST_KEY = "tayaStackBestV1";
@@ -2832,7 +3110,13 @@ function TayaStack({ copy }: { copy: StackCopy }) {
       setGame((current) => {
         if (current.status !== "running") return current;
         const width = current.blocks[current.blocks.length - 1].width;
-        const speed = Math.min(68, 29 + current.score * 2.1);
+        const level = getArcadeLevel(current.score, 5, 10);
+        const speed =
+          level === 1
+            ? 27 + current.score * 1.4
+            : level === 2
+              ? 43 + (current.score - 5) * 1.8
+              : Math.min(82, 61 + (current.score - 10) * 1.5);
         let movingX = current.movingX + current.direction * speed * delta;
         let direction = current.direction;
         if (movingX <= 0) {
@@ -2902,6 +3186,7 @@ function TayaStack({ copy }: { copy: StackCopy }) {
           if (event.detail === 0) handleStackAction();
         }}
       >
+        <ArcadeLevelBadge score={game.score} level2At={5} level3At={10} label={copy.level} />
         <span className="taya-arcade-hud">
           <span>{copy.score} <strong>{game.score}</strong></span>
           <span>{copy.best} <strong>{bestScore}</strong></span>
@@ -2934,6 +3219,220 @@ function TayaStack({ copy }: { copy: StackCopy }) {
       <button className="taya-arcade-action" type="button" onClick={handleStackAction}>
         {game.status === "running" ? copy.drop : copy.start}
       </button>
+    </div>
+  );
+}
+
+type Game2048State = {
+  status: "ready" | "running" | "over";
+  board: number[];
+  score: number;
+};
+
+type Game2048Copy = {
+  start: string;
+  gameOver: string;
+  score: string;
+  best: string;
+  restart: string;
+  up: string;
+  down: string;
+  left: string;
+  right: string;
+  level: string;
+};
+
+type Game2048Direction = "up" | "down" | "left" | "right";
+
+const GAME_2048_SIZE = 4;
+const GAME_2048_BEST_KEY = "taya2048BestV1";
+
+function get2048SpawnValue(board: number[]) {
+  const highestTile = Math.max(0, ...board);
+  const level = getArcadeLevel(highestTile, 128, 512);
+  const roll = Math.random();
+
+  if (level === 3) {
+    if (roll < 0.08) return 8;
+    if (roll < 0.36) return 4;
+    return 2;
+  }
+  if (level === 2) return roll < 0.24 ? 4 : 2;
+  return roll < 0.1 ? 4 : 2;
+}
+
+function add2048Tile(board: number[]) {
+  const emptyIndexes = board
+    .map((value, index) => (value === 0 ? index : -1))
+    .filter((index) => index >= 0);
+  if (emptyIndexes.length === 0) return board;
+
+  const next = [...board];
+  const targetIndex = emptyIndexes[randomBreakIndex(emptyIndexes.length)];
+  next[targetIndex] = get2048SpawnValue(board);
+  return next;
+}
+
+function create2048State(status: Game2048State["status"] = "ready"): Game2048State {
+  const emptyBoard = Array.from({ length: GAME_2048_SIZE * GAME_2048_SIZE }, () => 0);
+  return {
+    status,
+    board: add2048Tile(add2048Tile(emptyBoard)),
+    score: 0,
+  };
+}
+
+function merge2048Line(line: number[]) {
+  const compact = line.filter((value) => value > 0);
+  const merged: number[] = [];
+  let gained = 0;
+
+  for (let index = 0; index < compact.length; index += 1) {
+    if (compact[index] === compact[index + 1]) {
+      const value = compact[index] * 2;
+      merged.push(value);
+      gained += value;
+      index += 1;
+    } else {
+      merged.push(compact[index]);
+    }
+  }
+
+  return {
+    line: [...merged, ...Array.from({ length: GAME_2048_SIZE - merged.length }, () => 0)],
+    gained,
+  };
+}
+
+function can2048Move(board: number[]) {
+  if (board.some((value) => value === 0)) return true;
+
+  for (let row = 0; row < GAME_2048_SIZE; row += 1) {
+    for (let column = 0; column < GAME_2048_SIZE; column += 1) {
+      const index = row * GAME_2048_SIZE + column;
+      if (column < GAME_2048_SIZE - 1 && board[index] === board[index + 1]) return true;
+      if (row < GAME_2048_SIZE - 1 && board[index] === board[index + GAME_2048_SIZE]) return true;
+    }
+  }
+
+  return false;
+}
+
+function move2048(current: Game2048State, direction: Game2048Direction): Game2048State {
+  if (current.status !== "running") return current;
+  const nextBoard = Array.from({ length: GAME_2048_SIZE * GAME_2048_SIZE }, () => 0);
+  let gained = 0;
+
+  for (let lineIndex = 0; lineIndex < GAME_2048_SIZE; lineIndex += 1) {
+    const original = Array.from({ length: GAME_2048_SIZE }, (_, offset) => {
+      if (direction === "left" || direction === "right") {
+        return current.board[lineIndex * GAME_2048_SIZE + offset];
+      }
+      return current.board[offset * GAME_2048_SIZE + lineIndex];
+    });
+    const workingLine = direction === "right" || direction === "down" ? [...original].reverse() : original;
+    const merged = merge2048Line(workingLine);
+    const resultLine = direction === "right" || direction === "down" ? [...merged.line].reverse() : merged.line;
+    gained += merged.gained;
+
+    resultLine.forEach((value, offset) => {
+      if (direction === "left" || direction === "right") {
+        nextBoard[lineIndex * GAME_2048_SIZE + offset] = value;
+      } else {
+        nextBoard[offset * GAME_2048_SIZE + lineIndex] = value;
+      }
+    });
+  }
+
+  const moved = nextBoard.some((value, index) => value !== current.board[index]);
+  if (!moved) return can2048Move(current.board) ? current : { ...current, status: "over" };
+
+  const boardWithNewTile = add2048Tile(nextBoard);
+  return {
+    status: can2048Move(boardWithNewTile) ? "running" : "over",
+    board: boardWithNewTile,
+    score: current.score + gained,
+  };
+}
+
+function Taya2048({ copy }: { copy: Game2048Copy }) {
+  const [game, setGame] = useState<Game2048State>(() => create2048State());
+  const [bestScore, setBestScore] = useState(0);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(GAME_2048_BEST_KEY) || 0);
+    const timer = window.setTimeout(() => setBestScore(Number.isFinite(saved) ? saved : 0), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (game.score <= bestScore) return;
+    window.localStorage.setItem(GAME_2048_BEST_KEY, String(game.score));
+    const timer = window.setTimeout(() => setBestScore(game.score), 0);
+    return () => window.clearTimeout(timer);
+  }, [bestScore, game.score]);
+
+  useEffect(() => {
+    if (game.status !== "running") return;
+    function control2048(event: KeyboardEvent) {
+      const directionByKey: Record<string, Game2048Direction | undefined> = {
+        ArrowUp: "up",
+        KeyW: "up",
+        ArrowDown: "down",
+        KeyS: "down",
+        ArrowLeft: "left",
+        KeyA: "left",
+        ArrowRight: "right",
+        KeyD: "right",
+      };
+      const direction = directionByKey[event.code];
+      if (!direction) return;
+      event.preventDefault();
+      setGame((current) => move2048(current, direction));
+    }
+    window.addEventListener("keydown", control2048);
+    return () => window.removeEventListener("keydown", control2048);
+  }, [game.status]);
+
+  function start2048() {
+    setGame(create2048State("running"));
+  }
+
+  const highestTile = Math.max(0, ...game.board);
+
+  return (
+    <div className="taya-2048-shell">
+      <ArcadeLevelBadge score={highestTile} level2At={128} level3At={512} label={copy.level} />
+      <div className="taya-2048-hud">
+        <span>{copy.score} <strong>{game.score}</strong></span>
+        <span>{copy.best} <strong>{bestScore}</strong></span>
+      </div>
+      <div className="taya-2048-board" role="img" aria-label={`${copy.score}: ${game.score}`}>
+        {game.board.map((value, index) => (
+          <span
+            key={index}
+            className={`taya-2048-tile ${value > 0 ? `tile-${Math.min(11, Math.log2(value))}` : "is-empty"}`}
+            aria-hidden="true"
+          >
+            {value || ""}
+          </span>
+        ))}
+        {game.status !== "running" && (
+          <div className="taya-2048-overlay">
+            <strong>{game.status === "over" ? copy.gameOver : "TAYA 2048"}</strong>
+            {game.status === "over" && <em>{copy.score}: {game.score}</em>}
+            <button type="button" onClick={start2048}>
+              {game.status === "over" ? copy.restart : copy.start}
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="taya-2048-controls" aria-label="2048 controls">
+        <button className="is-up" type="button" aria-label={copy.up} onClick={() => setGame((current) => move2048(current, "up"))}>↑</button>
+        <button className="is-left" type="button" aria-label={copy.left} onClick={() => setGame((current) => move2048(current, "left"))}>←</button>
+        <button className="is-down" type="button" aria-label={copy.down} onClick={() => setGame((current) => move2048(current, "down"))}>↓</button>
+        <button className="is-right" type="button" aria-label={copy.right} onClick={() => setGame((current) => move2048(current, "right"))}>→</button>
+      </div>
     </div>
   );
 }
@@ -2972,7 +3471,7 @@ const breakGameCopy = {
     quizWrong: "Not quite — try again.",
     flapButton: "FLAP",
     dropButton: "DROP",
-    cleared: "Board cleared",
+    level: "LEVEL",
     games: {
       bubbles: { title: "Bubble pause", help: "Pop the bubbles at your own pace.", progress: "bubbles popped" },
       odd: { title: "Soft focus", help: "Find the tile that is just a little different.", progress: "rounds found" },
@@ -2981,8 +3480,8 @@ const breakGameCopy = {
       runner: { title: "Taya Runner", help: "Jump over obstacles. The longer you run, the faster it gets.", progress: "running time" },
       snake: { title: "Taya Snake", help: "Collect the fruit without hitting the wall or yourself.", progress: "score" },
       flappy: { title: "Taya Flappy", help: "Flap through the gaps. Each pipe makes the next one faster.", progress: "score" },
-      breakout: { title: "Taya Breakout", help: "Move the paddle, keep the ball alive, and clear every brick.", progress: "bricks" },
       stack: { title: "Taya Stack", help: "Drop each moving block as neatly as you can.", progress: "blocks" },
+      "2048": { title: "Taya 2048", help: "Combine matching tiles. Reach 128 and 512 to unlock harder levels.", progress: "score" },
     },
   },
   ja: {
@@ -3018,7 +3517,7 @@ const breakGameCopy = {
     quizWrong: "もう一度お試しください。",
     flapButton: "FLAP",
     dropButton: "DROP",
-    cleared: "クリア",
+    level: "LEVEL",
     games: {
       bubbles: { title: "バブル休憩", help: "気の向くままに、泡をタップしてください。", progress: "個の泡をポップ" },
       odd: { title: "やさしい集中", help: "少しだけ色の違うタイルを見つけてください。", progress: "ラウンド完了" },
@@ -3027,8 +3526,8 @@ const breakGameCopy = {
       runner: { title: "Taya Runner", help: "障害物をジャンプ。走り続けるほどスピードが上がります。", progress: "走行タイム" },
       snake: { title: "Taya Snake", help: "壁や自分にぶつからないようにフルーツを集めます。", progress: "スコア" },
       flappy: { title: "Taya Flappy", help: "タップして隙間を通過。進むほど速くなります。", progress: "スコア" },
-      breakout: { title: "Taya Breakout", help: "パドルを動かし、ボールを落とさず全てのブロックを消します。", progress: "ブロック" },
       stack: { title: "Taya Stack", help: "動くブロックをできるだけきれいに積み上げます。", progress: "ブロック" },
+      "2048": { title: "Taya 2048", help: "同じ数字を合体。128と512で難易度が上がります。", progress: "スコア" },
     },
   },
   zh_cn: {
@@ -3064,7 +3563,7 @@ const breakGameCopy = {
     quizWrong: "还差一点，请再试一次。",
     flapButton: "拍动",
     dropButton: "放下",
-    cleared: "全部消除",
+    level: "等级",
     games: {
       bubbles: { title: "泡泡休息", help: "慢慢戳破泡泡，放松一下。", progress: "个泡泡已戳破" },
       odd: { title: "轻松找不同", help: "找出颜色有一点点不同的方块。", progress: "轮已找到" },
@@ -3073,8 +3572,8 @@ const breakGameCopy = {
       runner: { title: "Taya Runner", help: "跳过障碍物，坚持越久速度越快。", progress: "跑酷时间" },
       snake: { title: "Taya Snake", help: "吃到水果，同时不要撞墙或撞到自己。", progress: "分数" },
       flappy: { title: "Taya Flappy", help: "点击穿过缝隙，每通过一个障碍速度都会加快。", progress: "分数" },
-      breakout: { title: "Taya Breakout", help: "移动挡板接住小球，消除所有砖块。", progress: "砖块" },
       stack: { title: "Taya Stack", help: "看准时机，把移动的方块整齐叠起来。", progress: "方块" },
+      "2048": { title: "Taya 2048", help: "合并相同数字，达到128和512后提高难度。", progress: "分数" },
     },
   },
   zh_tw: {
@@ -3110,7 +3609,7 @@ const breakGameCopy = {
     quizWrong: "還差一點，請再試一次。",
     flapButton: "拍動",
     dropButton: "放下",
-    cleared: "全部消除",
+    level: "等級",
     games: {
       bubbles: { title: "泡泡休息", help: "慢慢戳破泡泡，放鬆一下。", progress: "個泡泡已戳破" },
       odd: { title: "輕鬆找不同", help: "找出顏色有一點點不同的方塊。", progress: "輪已找到" },
@@ -3119,8 +3618,8 @@ const breakGameCopy = {
       runner: { title: "Taya Runner", help: "跳過障礙物，堅持越久速度越快。", progress: "跑酷時間" },
       snake: { title: "Taya Snake", help: "吃到水果，同時不要撞牆或撞到自己。", progress: "分數" },
       flappy: { title: "Taya Flappy", help: "點擊穿過縫隙，每通過一個障礙速度都會加快。", progress: "分數" },
-      breakout: { title: "Taya Breakout", help: "移動擋板接住小球，消除所有磚塊。", progress: "磚塊" },
       stack: { title: "Taya Stack", help: "看準時機，把移動的方塊整齊疊起來。", progress: "方塊" },
+      "2048": { title: "Taya 2048", help: "合併相同數字，達到128和512後提高難度。", progress: "分數" },
     },
   },
   mn: {
@@ -3156,7 +3655,7 @@ const breakGameCopy = {
     quizWrong: "Not quite — try again.",
     flapButton: "FLAP",
     dropButton: "DROP",
-    cleared: "Board cleared",
+    level: "LEVEL",
     games: {
       bubbles: { title: "Bubble pause", help: "Pop the bubbles at your own pace.", progress: "bubbles popped" },
       odd: { title: "Soft focus", help: "Find the tile that is just a little different.", progress: "rounds found" },
@@ -3165,8 +3664,8 @@ const breakGameCopy = {
       runner: { title: "Taya Runner", help: "Jump over obstacles. The longer you run, the faster it gets.", progress: "running time" },
       snake: { title: "Taya Snake", help: "Collect the fruit without hitting the wall or yourself.", progress: "score" },
       flappy: { title: "Taya Flappy", help: "Flap through the gaps. Each pipe makes the next one faster.", progress: "score" },
-      breakout: { title: "Taya Breakout", help: "Move the paddle, keep the ball alive, and clear every brick.", progress: "bricks" },
       stack: { title: "Taya Stack", help: "Drop each moving block as neatly as you can.", progress: "blocks" },
+      "2048": { title: "Taya 2048", help: "Combine matching tiles. Reach 128 and 512 to unlock harder levels.", progress: "score" },
     },
   },
 } as const;
@@ -3204,10 +3703,10 @@ function BreakGame({ language }: { language: NaviLanguage }) {
     runner: { value: 0, max: 1 },
     snake: { value: 0, max: 1 },
     flappy: { value: 0, max: 1 },
-    breakout: { value: 0, max: 1 },
     stack: { value: 0, max: 1 },
+    "2048": { value: 0, max: 1 },
   }[gameKind];
-  const isArcadeGame = ["runner", "snake", "flappy", "breakout", "stack"].includes(gameKind);
+  const isArcadeGame = ["runner", "snake", "flappy", "stack", "2048"].includes(gameKind);
   const isComplete = !isArcadeGame && gameProgress.value >= gameProgress.max;
 
   useEffect(() => {
@@ -3294,6 +3793,25 @@ function BreakGame({ language }: { language: NaviLanguage }) {
   }
 
   function renderCurrentGame() {
+    if (gameKind === "2048") {
+      return (
+        <Taya2048
+          copy={{
+            start: copy.startButton,
+            gameOver: copy.snakeGameOver,
+            score: copy.score,
+            best: copy.best,
+            restart: copy.snakeRestart,
+            up: copy.up,
+            down: copy.down,
+            left: copy.left,
+            right: copy.right,
+            level: copy.level,
+          }}
+        />
+      );
+    }
+
     if (gameKind === "stack") {
       return (
         <TayaStack
@@ -3304,23 +3822,7 @@ function BreakGame({ language }: { language: NaviLanguage }) {
             best: copy.best,
             restart: copy.snakeRestart,
             drop: copy.dropButton,
-          }}
-        />
-      );
-    }
-
-    if (gameKind === "breakout") {
-      return (
-        <TayaBreakout
-          copy={{
-            start: copy.startButton,
-            gameOver: copy.snakeGameOver,
-            cleared: copy.cleared,
-            time: copy.time,
-            best: copy.best,
-            restart: copy.snakeRestart,
-            left: copy.left,
-            right: copy.right,
+            level: copy.level,
           }}
         />
       );
@@ -3337,6 +3839,7 @@ function BreakGame({ language }: { language: NaviLanguage }) {
             best: copy.best,
             restart: copy.snakeRestart,
             flap: copy.flapButton,
+            level: copy.level,
           }}
         />
       );
@@ -3355,6 +3858,7 @@ function BreakGame({ language }: { language: NaviLanguage }) {
             down: copy.down,
             left: copy.left,
             right: copy.right,
+            level: copy.level,
           }}
         />
       );
@@ -3372,6 +3876,7 @@ function BreakGame({ language }: { language: NaviLanguage }) {
             time: copy.time,
             best: copy.best,
             restart: copy.restart,
+            level: copy.level,
           }}
         />
       );
@@ -3558,15 +4063,6 @@ function BreakGame({ language }: { language: NaviLanguage }) {
                 Flappy
               </button>
               <button
-                className={gameKind === "breakout" ? "is-active" : ""}
-                type="button"
-                role="tab"
-                aria-selected={gameKind === "breakout"}
-                onClick={() => resetGame("breakout")}
-              >
-                Breakout
-              </button>
-              <button
                 className={gameKind === "stack" ? "is-active" : ""}
                 type="button"
                 role="tab"
@@ -3574,6 +4070,15 @@ function BreakGame({ language }: { language: NaviLanguage }) {
                 onClick={() => resetGame("stack")}
               >
                 Stack
+              </button>
+              <button
+                className={gameKind === "2048" ? "is-active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={gameKind === "2048"}
+                onClick={() => resetGame("2048")}
+              >
+                2048
               </button>
             </div>
 
@@ -4015,6 +4520,12 @@ function SlackFormatterPanel({
     window.setTimeout(() => setCopiedId(""), 1800);
   }
 
+  async function copyForCanvas() {
+    await writeCanvasClipboard(formatSlackCanvas(experts));
+    setCopiedId("canvas");
+    window.setTimeout(() => setCopiedId(""), 1800);
+  }
+
   function updateExpert(
     expertId: string,
     field: keyof Omit<SlackExpertRecord, "warnings">,
@@ -4129,6 +4640,13 @@ function SlackFormatterPanel({
                   onClick={copyAllExperts}
                 >
                   {copiedId === "all" ? t.copiedAll : t.copyAll}
+                </button>
+                <button
+                  className="button button-primary slack-canvas-button"
+                  type="button"
+                  onClick={copyForCanvas}
+                >
+                  {copiedId === "canvas" ? t.copiedCanvas : t.copyCanvas}
                 </button>
               </div>
             )}
