@@ -1365,25 +1365,31 @@ function formatSlackExpertHtmlForCombinedCopy(record: SlackExpertRecord) {
 }
 
 function formatSlackExpertForCanvas(record: SlackExpertRecord) {
-  const parts = [`*${record.number} - ${record.name} - ✅${record.title}*`];
+  const parts = [`**${record.number} - ${record.name} - ✅${record.title}**`];
 
   if (record.introduction) parts.push(record.introduction);
 
   const screening = record.screeningText.trim();
   if (screening) {
-    const callout = [`*${record.screeningLabel}*`, "", screening]
-      .join("\n")
-      .split("\n")
-      .map((line) => (line ? `> ${line}` : ">"))
-      .join("\n");
+    const compactScreening = screening
+      .replace(/\r\n?/g, "\n")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/\n+(?=Q(?:\d+)?[\s).:：])/gi, "\n\n");
+    const callout = [
+      "::: {.callout}",
+      `**${record.screeningLabel}**`,
+      compactScreening,
+      ":::",
+    ].join("\n");
     parts.push(callout);
   }
 
   const history = slackHistoryItems(record.employmentHistory);
   if (history.length) {
     parts.push(
-      `*Employment History*\n\n${history
-        .map(({ date, detail }) => `• ${[date, detail].filter(Boolean).join(" | ")}`)
+      `**Employment History**\n${history
+        .map(({ date, detail }) => `- ${[date, detail].filter(Boolean).join(" | ")}`)
         .join("\n")}`,
     );
   }
@@ -1391,8 +1397,8 @@ function formatSlackExpertForCanvas(record: SlackExpertRecord) {
   const availability = slackAvailability(record);
   if (availability.slots.length) {
     parts.push(
-      `*${availability.heading}*\n\n${availability.slots
-        .map((slot) => `• \`${slot}\``)
+      `**${availability.heading}**\n${availability.slots
+        .map((slot) => `- \`${slot}\``)
         .join("\n")}`,
     );
   }
@@ -1400,11 +1406,10 @@ function formatSlackExpertForCanvas(record: SlackExpertRecord) {
   if (record.location) {
     parts.push(`This specialist is based in ${record.location}.`);
   }
-  if (record.fee) parts.push(`*${record.fee}*`);
+  if (record.fee) parts.push(`**${record.fee}**`);
 
   return parts.join("\n\n");
 }
-
 function formatSlackExpertHtmlForCanvas(record: SlackExpertRecord) {
   const header = `<p><strong>${escapeHtml(`${record.number} - ${record.name} - ✅${record.title}`)}</strong></p>`;
   const body = formatSlackExpertBodyHtml(record, "canvas");
@@ -1422,6 +1427,15 @@ function formatSlackExpertList(records: SlackExpertRecord[]) {
   ].join("\n");
 }
 
+function formatSlackExpertListForCanvas(records: SlackExpertRecord[]) {
+  return [
+    "**Expert List**",
+    ...records.map(
+      (record) =>
+        `- **${record.number} - ${record.name}** - ✅${record.title}`,
+    ),
+  ].join("\n");
+}
 function formatSlackExpertListHtml(records: SlackExpertRecord[]) {
   return `<div><p><strong>Expert List</strong></p><ul>${records
     .map(
@@ -1434,12 +1448,11 @@ function formatSlackExpertListHtml(records: SlackExpertRecord[]) {
 function formatSlackCanvas(records: SlackExpertRecord[]) {
   const expertDetails = records
     .map((record) => formatSlackExpertForCanvas(record))
-    .join("\n\n\n");
-  return [formatSlackExpertList(records), expertDetails]
+    .join("\n\n---\n\n");
+  return [formatSlackExpertListForCanvas(records), expertDetails]
     .filter(Boolean)
-    .join("\n\n\n");
+    .join("\n\n");
 }
-
 function formatSlackCanvasHtml(records: SlackExpertRecord[]) {
   const expertDetails = records
     .map((record) => formatSlackExpertHtmlForCanvas(record))
@@ -1474,7 +1487,7 @@ async function writeCanvasClipboard(plainText: string) {
 const slackTranslations = {
   en: {
     title: "Slack Expert Formatter",
-    version: "v1.9",
+    version: "v1.11",
     subtitle: "Turn multiple expert profiles into clean, copy-ready Slack posts.",
     privacy: "Everything is processed in your browser. Nothing is uploaded or stored.",
     inputTitle: "1. Paste expert profiles",
@@ -1521,7 +1534,7 @@ const slackTranslations = {
   },
   ja: {
     title: "Slack Expert Formatter",
-    version: "v1.9",
+    version: "v1.11",
     subtitle: "複数のエキスパート情報を、Slackに貼り付けやすい形式へ整えます。",
     privacy: "入力内容はブラウザ内だけで処理され、アップロードや保存はされません。",
     inputTitle: "1. エキスパート情報を貼り付け",
@@ -1568,7 +1581,7 @@ const slackTranslations = {
   },
   zh: {
     title: "Slack Expert Formatter",
-    version: "v1.9",
+    version: "v1.11",
     subtitle: "将多位专家信息整理成可直接复制到 Slack 的格式。",
     privacy: "所有内容只在浏览器中处理，不会上传或保存。",
     inputTitle: "1. 粘贴专家信息",
