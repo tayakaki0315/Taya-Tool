@@ -472,6 +472,8 @@ textarea:focus {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -2183,7 +2185,7 @@ footer {
 }
 
 .break-game-card.is-runner {
-  width: min(560px, 100%);
+  width: min(650px, 100%);
 }
 
 .break-game-card.is-quiz {
@@ -2474,8 +2476,9 @@ footer {
 }
 
 .break-game-board.game-flappy,
-.break-game-board.game-breakout,
-.break-game-board.game-stack {
+.break-game-board.game-metro,
+.break-game-board.game-stack,
+.break-game-board.game-2048 {
   height: 300px;
   margin-top: 12px;
 }
@@ -2485,15 +2488,23 @@ footer {
   background: #e9f7fb;
 }
 
-.break-game-board.game-breakout {
-  padding: 12px;
-  border-color: rgba(74, 78, 150, 0.26);
-  background: linear-gradient(160deg, #f2f1ff, #edf7fb);
+.break-game-board.game-metro {
+  height: 390px;
+  padding: 10px;
+  border-color: rgba(17, 48, 72, 0.42);
+  background: linear-gradient(160deg, #cfe4ec, #e3f1ed);
 }
 
 .break-game-board.game-stack {
   border-color: rgba(38, 137, 104, 0.25);
   background: linear-gradient(180deg, #edf9f5, #e8f4fb);
+}
+
+.break-game-board.game-2048 {
+  height: 390px;
+  padding: 12px;
+  border-color: rgba(135, 101, 73, 0.28);
+  background: linear-gradient(160deg, #f7f1e8, #edf6f3);
 }
 
 .taya-runner-shell {
@@ -2557,6 +2568,7 @@ footer {
 }
 
 .taya-snake-shell {
+  position: relative;
   display: grid;
   width: 100%;
   height: 100%;
@@ -2783,6 +2795,57 @@ footer {
   font-variant-numeric: tabular-nums;
 }
 
+.taya-arcade-level {
+  position: absolute;
+  top: 11px;
+  left: 13px;
+  z-index: 14;
+  display: inline-flex;
+  min-width: 76px;
+  min-height: 27px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 5px 8px;
+  border: 1px solid rgba(32, 82, 72, 0.18);
+  border-radius: 999px;
+  color: #16473a;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 4px 12px rgba(30, 77, 67, 0.1);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: taya-level-up 480ms ease-out both;
+}
+
+.taya-arcade-level strong {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.taya-arcade-level small {
+  color: inherit;
+  font-size: 8px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.68;
+}
+
+.taya-arcade-level.is-level-2 {
+  color: #244e86;
+  border-color: rgba(58, 110, 180, 0.28);
+  background: rgba(232, 242, 255, 0.9);
+  box-shadow: 0 4px 15px rgba(62, 113, 181, 0.16);
+}
+
+.taya-arcade-level.is-level-3 {
+  color: #6b3d91;
+  border-color: rgba(126, 82, 169, 0.3);
+  background: rgba(246, 235, 255, 0.92);
+  box-shadow: 0 4px 17px rgba(113, 72, 155, 0.2);
+}
+
 .taya-arcade-action {
   position: absolute;
   right: 15px;
@@ -2967,7 +3030,7 @@ footer {
   animation-duration: 11s;
 }
 
-.taya-breakout-shell {
+.taya-metro-shell {
   position: relative;
   display: grid;
   width: 100%;
@@ -2976,103 +3039,435 @@ footer {
   gap: 8px;
 }
 
-.taya-breakout-shell > .taya-arcade-hud {
-  top: 8px;
-  right: 10px;
+.taya-metro-shell > .taya-arcade-hud {
+  top: 11px;
+  right: 13px;
+  gap: 12px;
+  color: #dff7ff;
+  text-shadow: 0 1px 2px rgba(4, 23, 37, 0.65);
 }
 
-.taya-breakout-stage {
+.taya-metro-shell > .taya-arcade-hud strong {
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.taya-metro-stage {
   position: relative;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(66, 70, 143, 0.2);
+  border: 2px solid #102f48;
   border-radius: 13px;
   background:
-    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.7), transparent 40%),
-    linear-gradient(180deg, #eeefff, #e8f6f5);
-  cursor: ew-resize;
+    radial-gradient(circle at 50% 3%, rgba(98, 219, 239, 0.48), transparent 31%),
+    linear-gradient(180deg, #0d385b 0%, #23647b 40%, #12373f 100%);
+  box-shadow: inset 0 0 0 2px rgba(164, 227, 229, 0.1);
+  image-rendering: auto;
   touch-action: none;
 }
 
-.taya-breakout-brick {
+.taya-metro-stage::before {
+  content: "";
   position: absolute;
-  width: 10.5%;
-  height: 5.8%;
-  border: 1px solid rgba(53, 61, 116, 0.18);
-  border-radius: 4px;
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.42), 0 2px 4px rgba(50, 58, 110, 0.08);
-  transition: opacity 100ms ease, transform 100ms ease;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(105deg, transparent 0 10%, rgba(87, 244, 216, 0.28) 10.5% 11%, transparent 11.5%),
+    linear-gradient(75deg, transparent 0 88%, rgba(255, 206, 82, 0.28) 88.5% 89%, transparent 89.5%);
+  pointer-events: none;
 }
 
-.taya-breakout-brick.tone-1 {
-  background: linear-gradient(145deg, #8cb6ff, #668de4);
-}
-
-.taya-breakout-brick.tone-2 {
-  background: linear-gradient(145deg, #a895e9, #846bc8);
-}
-
-.taya-breakout-brick.tone-3 {
-  background: linear-gradient(145deg, #7ed8bd, #4fb796);
-}
-
-.taya-breakout-brick.tone-4 {
-  background: linear-gradient(145deg, #f4b57d, #df8d5a);
-}
-
-.taya-breakout-brick.is-cleared {
-  opacity: 0;
-  transform: scale(0.7);
-}
-
-.taya-breakout-ball {
+.taya-metro-skyline {
   position: absolute;
-  z-index: 4;
-  width: 12px;
-  height: 12px;
-  border: 2px solid #31527d;
+  top: 12%;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  height: 26%;
+  opacity: 1;
+  background:
+    linear-gradient(90deg, transparent 0 5%, #09273e 5% 15%, transparent 15% 18%, #113147 18% 31%, transparent 31% 36%, #09273e 36% 45%, transparent 45% 54%, #113147 54% 69%, transparent 69% 73%, #09273e 73% 88%, transparent 88%),
+    repeating-linear-gradient(90deg, transparent 0 17px, #ffd869 18px 21px, transparent 22px 35px);
+  clip-path: polygon(0 38%, 8% 38%, 8% 5%, 17% 5%, 17% 28%, 26% 28%, 26% 0, 39% 0, 39% 36%, 48% 36%, 48% 13%, 60% 13%, 60% 31%, 70% 31%, 70% 8%, 84% 8%, 84% 40%, 100% 40%, 100% 100%, 0 100%);
+}
+
+.taya-metro-track {
+  position: absolute;
+  inset: 28% 3% 0;
+  z-index: 2;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(180deg, rgba(239, 244, 226, 0.72) 0 4px, transparent 4px 22px),
+    linear-gradient(90deg, #1b2d33, #586b63 49%, #1b2d33);
+  clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%);
+}
+
+.taya-metro-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(180deg, transparent 0 15px, rgba(255, 255, 255, 0.46) 15px 19px);
+  animation: taya-metro-track 620ms linear infinite;
+  animation-play-state: paused;
+}
+
+.taya-metro-stage.is-running .taya-metro-track::after {
+  animation-play-state: running;
+}
+
+.taya-metro-stage.level-2 .taya-metro-track::after {
+  animation-duration: 460ms;
+}
+
+.taya-metro-stage.level-3 .taya-metro-track::after {
+  animation-duration: 330ms;
+}
+
+.taya-metro-track i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, rgba(219, 239, 235, 0.54), #d8eee7);
+  box-shadow: 0 0 0 1px rgba(8, 28, 33, 0.22);
+  transform-origin: top;
+}
+
+.taya-metro-track i:nth-child(1) {
+  left: 37%;
+  transform: rotate(7deg);
+}
+
+.taya-metro-track i:nth-child(2) {
+  left: 50%;
+}
+
+.taya-metro-track i:nth-child(3) {
+  right: 37%;
+  transform: rotate(-7deg);
+}
+
+.taya-metro-obstacle {
+  position: absolute;
+  z-index: 6;
+  width: 46px;
+  height: 42px;
+  transform-origin: center;
+  will-change: left, top, transform;
+}
+
+.taya-metro-obstacle.is-train {
+  width: 48px;
+  height: 68px;
+  border: 3px solid #071f33;
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(90deg, #197fa9, #72d4e0 48%, #197fa9);
+  box-shadow: 0 8px 0 rgba(4, 20, 34, 0.38), 0 0 0 2px rgba(255, 255, 255, 0.16);
+}
+
+.taya-metro-obstacle.is-train::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 7px;
+  left: 7px;
+  height: 21px;
+  border-radius: 3px;
+  background: #e8fbff;
+  box-shadow: inset 0 -5px 0 rgba(40, 129, 157, 0.34);
+}
+
+.taya-metro-obstacle.is-train b {
+  position: absolute;
+  bottom: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(36, 67, 105, 0.26);
-  transform: translate(-50%, -50%);
-  will-change: left, top;
+  background: #fff07c;
+  box-shadow: 0 0 6px #ffdd4d;
 }
 
-.taya-breakout-paddle {
+.taya-metro-obstacle.is-train b:first-child {
+  left: 7px;
+}
+
+.taya-metro-obstacle.is-train b:last-child {
+  right: 7px;
+}
+
+.taya-metro-obstacle.is-barrier {
+  width: 54px;
+  height: 27px;
+  border: 3px solid #6b220e;
+  border-radius: 5px;
+  background: repeating-linear-gradient(135deg, #ffe05a 0 9px, #f04d2f 9px 18px);
+  box-shadow: 0 7px 0 rgba(64, 20, 8, 0.38), 0 0 0 2px rgba(255, 255, 255, 0.16);
+}
+
+.taya-metro-obstacle.is-gate {
+  width: 52px;
+  height: 59px;
+  border: 7px solid #b58cff;
+  border-bottom: 0;
+  border-radius: 9px 9px 0 0;
+  background: transparent;
+  box-shadow: inset 0 9px 0 #ffdb5f, 0 0 0 3px rgba(16, 24, 63, 0.5);
+}
+
+.taya-metro-obstacle.is-gate b {
   position: absolute;
-  bottom: 8%;
-  z-index: 3;
-  width: 20%;
-  height: 11px;
-  border: 2px solid #126947;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #35c98a, #119661);
-  box-shadow: 0 4px 0 rgba(18, 105, 71, 0.13);
-  will-change: left;
+  top: 16px;
+  right: 3px;
+  left: 3px;
+  height: 7px;
+  background: repeating-linear-gradient(90deg, #ffe065 0 8px, #f1513b 8px 16px);
 }
 
-.taya-breakout-controls {
+.taya-metro-obstacle em {
+  position: absolute;
+  bottom: -23px;
+  left: 50%;
+  min-width: max-content;
+  padding: 3px 7px;
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  border-radius: 999px;
+  color: #ffffff;
+  background: #0b2236;
+  box-shadow: 0 3px 0 rgba(3, 17, 28, 0.36);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-shadow: none;
+  transform: translateX(-50%);
+}
+
+.taya-metro-obstacle.is-barrier em {
+  background: #d93d23;
+}
+
+.taya-metro-obstacle.is-gate em {
+  background: #7147bb;
+}
+
+.taya-metro-obstacle.is-train em {
+  background: #086e9a;
+}
+
+.taya-metro-player {
+  position: absolute;
+  bottom: 18px;
+  z-index: 8;
   display: grid;
-  width: min(260px, 100%);
-  grid-template-columns: 44px minmax(90px, 1fr) 44px;
-  gap: 8px;
+  width: 36px;
+  height: 50px;
+  place-items: start center;
+  border: 3px solid #082a41;
+  border-radius: 12px 12px 8px 8px;
+  color: #ffffff;
+  background: linear-gradient(160deg, #36efa9, #1387ba);
+  box-shadow: 0 8px 0 rgba(3, 25, 39, 0.42), 0 0 0 2px rgba(255, 255, 255, 0.18);
+  transform: translateX(-50%);
+  transition: left 150ms ease, bottom 180ms ease, height 150ms ease, border-radius 150ms ease;
+}
+
+.taya-metro-player::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  width: 23px;
+  height: 23px;
+  border: 3px solid #082a41;
+  border-radius: 50%;
+  background: #ffd9b0;
+}
+
+.taya-metro-player::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  width: 40px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(3, 20, 31, 0.46);
+}
+
+.taya-metro-player b {
+  position: relative;
+  z-index: 2;
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.taya-metro-player.is-jump {
+  bottom: 88px;
+  transform: translateX(-50%) rotate(-6deg);
+}
+
+.taya-metro-player.is-slide {
+  bottom: 16px;
+  width: 50px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.taya-metro-player.is-slide::before {
+  top: -4px;
+  left: 0;
+  width: 19px;
+  height: 19px;
+}
+
+.taya-metro-player.is-slide b {
+  margin-top: 1px;
+}
+
+.taya-metro-controls {
+  display: grid;
+  width: min(390px, 100%);
+  grid-template-columns: repeat(4, 1fr);
+  gap: 9px;
   justify-self: center;
 }
 
-.taya-breakout-controls button {
-  min-height: 34px;
-  border: 1px solid rgba(48, 75, 128, 0.23);
-  border-radius: 9px;
-  color: #244b78;
-  background: rgba(255, 255, 255, 0.82);
-  font-size: 12px;
+.taya-metro-controls button {
+  display: grid;
+  min-height: 50px;
+  place-items: center;
+  gap: 0;
+  padding: 5px 7px;
+  border: 2px solid rgba(22, 69, 91, 0.34);
+  border-radius: 11px;
+  color: #103e57;
+  background: #ffffff;
   font-weight: 850;
   cursor: pointer;
 }
 
-.taya-breakout-controls button:active {
+.taya-metro-controls button b {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.taya-metro-controls button small {
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.taya-metro-controls button.is-jump {
+  color: #a12c17;
+  border-color: rgba(218, 61, 35, 0.45);
+  background: #fff1e8;
+}
+
+.taya-metro-controls button.is-slide {
+  color: #653aa9;
+  border-color: rgba(113, 71, 187, 0.44);
+  background: #f5edff;
+}
+
+.taya-metro-controls button:active {
   color: #ffffff;
-  background: #4779bb;
+  background: #188c83;
+}
+
+.taya-metro-next {
+  position: absolute;
+  top: 48px;
+  left: 13px;
+  z-index: 15;
+  display: grid;
+  min-width: 86px;
+  padding: 5px 9px;
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  border-radius: 9px;
+  color: #ffffff;
+  background: #0b2236;
+  box-shadow: 0 4px 0 rgba(3, 17, 28, 0.34);
+}
+
+.taya-metro-next small {
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  opacity: 0.75;
+}
+
+.taya-metro-next strong {
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.03em;
+}
+
+.taya-metro-next.is-barrier {
+  background: #d93d23;
+}
+
+.taya-metro-next.is-gate {
+  background: #7147bb;
+}
+
+.taya-metro-next.is-train {
+  background: #086e9a;
+}
+
+.taya-metro-stage > .taya-arcade-overlay {
+  gap: 10px;
+  color: #ffffff;
+  background: rgba(5, 22, 37, 0.9);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.taya-metro-stage > .taya-arcade-overlay strong {
+  color: #ffffff;
+  font-size: 24px;
+}
+
+.taya-metro-stage > .taya-arcade-overlay em {
+  color: #70f1bd;
+}
+
+.taya-metro-instructions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.taya-metro-instructions span {
+  display: inline-flex;
+  min-width: 76px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 9px;
+  color: #ffffff;
+  background: #086e9a;
+}
+
+.taya-metro-instructions span.is-jump {
+  background: #d93d23;
+}
+
+.taya-metro-instructions span.is-slide {
+  background: #7147bb;
+}
+
+.taya-metro-instructions b {
+  font-size: 18px;
+}
+
+.taya-metro-instructions small {
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
 }
 
 .taya-stack-ground {
@@ -3122,6 +3517,173 @@ footer {
 
 .taya-stack-block.tone-4 {
   background: linear-gradient(145deg, #f0b878, #dd8f52);
+}
+
+.taya-2048-shell {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.taya-2048-hud {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 15px;
+  color: #74665c;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.taya-2048-hud strong {
+  min-width: 28px;
+  color: #4d4037;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.taya-2048-board {
+  position: relative;
+  display: grid;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  align-self: center;
+  justify-self: center;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  padding: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(111, 82, 60, 0.22);
+  border-radius: 15px;
+  background: #b9aaa0;
+  box-shadow: inset 0 0 20px rgba(77, 60, 47, 0.12);
+}
+
+.taya-2048-tile {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  border-radius: 9px;
+  color: #5d5148;
+  background: #eee5db;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.32);
+  font-size: clamp(16px, 3.1vw, 25px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  animation: taya-2048-pop 140ms ease-out both;
+}
+
+.taya-2048-tile.is-empty {
+  background: rgba(238, 229, 219, 0.36);
+  box-shadow: none;
+  animation: none;
+}
+
+.taya-2048-tile.tile-1 { background: #eee5db; }
+.taya-2048-tile.tile-2 { background: #eadbc5; }
+.taya-2048-tile.tile-3 { color: #ffffff; background: #efaf70; }
+.taya-2048-tile.tile-4 { color: #ffffff; background: #ed9457; }
+.taya-2048-tile.tile-5 { color: #ffffff; background: #e97859; }
+.taya-2048-tile.tile-6 { color: #ffffff; background: #df5d43; }
+.taya-2048-tile.tile-7 { color: #ffffff; background: #e2c45b; font-size: clamp(15px, 2.8vw, 22px); }
+.taya-2048-tile.tile-8 { color: #ffffff; background: #d7ac3d; font-size: clamp(15px, 2.8vw, 22px); }
+.taya-2048-tile.tile-9 { color: #ffffff; background: #c88c2e; font-size: clamp(14px, 2.6vw, 20px); }
+.taya-2048-tile.tile-10 { color: #ffffff; background: #4c9c82; font-size: clamp(13px, 2.4vw, 18px); }
+.taya-2048-tile.tile-11 { color: #ffffff; background: #386f77; font-size: clamp(12px, 2.2vw, 17px); }
+
+.taya-2048-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  padding: 20px;
+  background: rgba(247, 240, 231, 0.82);
+  text-align: center;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.taya-2048-overlay strong {
+  color: #59483b;
+  font-size: 22px;
+}
+
+.taya-2048-overlay em {
+  color: #b66b2d;
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.taya-2048-overlay button {
+  justify-self: center;
+  min-width: 96px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #9d6a43;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.taya-2048-controls {
+  display: grid;
+  width: 142px;
+  grid-template-columns: repeat(3, 42px);
+  grid-template-rows: repeat(2, 34px);
+  gap: 5px 8px;
+  justify-self: center;
+}
+
+.taya-2048-controls button {
+  border: 1px solid rgba(111, 82, 60, 0.25);
+  border-radius: 9px;
+  color: #76523a;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 3px 7px rgba(93, 66, 46, 0.08);
+  font-size: 17px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.taya-2048-controls button:active {
+  color: #ffffff;
+  background: #9d6a43;
+  transform: translateY(1px);
+}
+
+.taya-2048-controls .is-up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.taya-2048-controls .is-left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.taya-2048-controls .is-down {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.taya-2048-controls .is-right {
+  grid-column: 3;
+  grid-row: 2;
 }
 
 .taya-runner-hud {
@@ -3491,6 +4053,22 @@ footer {
   to { transform: translateX(2px); }
 }
 
+@keyframes taya-metro-track {
+  from { background-position-y: 0; }
+  to { background-position-y: 20px; }
+}
+
+@keyframes taya-level-up {
+  0% { opacity: 0; transform: translateY(-5px) scale(0.84); }
+  55% { transform: translateY(0) scale(1.08); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes taya-2048-pop {
+  from { opacity: 0.72; transform: scale(0.88); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @keyframes taya-cloud-drift {
   from { transform: translateX(0); }
   to { transform: translateX(-34px); }
@@ -3502,6 +4080,10 @@ footer {
   .break-game-card,
   .break-bubble,
   .break-game-done,
+  .taya-arcade-level,
+  .taya-2048-tile,
+  .taya-metro-track::after,
+  .taya-metro-player,
   .taya-runner-player::after,
   .taya-runner-cloud,
   .taya-flappy-cloud {
@@ -3609,14 +4191,44 @@ footer {
   }
 
   .break-game-board.game-flappy,
-  .break-game-board.game-breakout,
+  .break-game-board.game-metro,
   .break-game-board.game-stack {
     height: min(290px, 50vh);
+  }
+
+  .break-game-board.game-metro {
+    height: min(360px, 58vh);
+    padding: 8px;
+  }
+
+  .taya-metro-controls {
+    width: 100%;
+    gap: 6px;
+  }
+
+  .taya-metro-controls button {
+    min-height: 46px;
+    padding: 4px;
+  }
+
+  .taya-metro-instructions span {
+    min-width: 68px;
+    padding: 6px 7px;
+  }
+
+  .break-game-board.game-2048 {
+    height: min(365px, 60vh);
+    padding: 10px;
   }
 
   .taya-snake-board {
     gap: 1px;
     padding: 5px;
+  }
+
+  .taya-2048-board {
+    gap: 5px;
+    padding: 6px;
   }
 
   .taya-runner-player {
@@ -3840,6 +4452,10 @@ footer {
     display: grid;
     width: 100%;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .slack-results-actions .slack-canvas-button {
+    grid-column: 1 / -1;
   }
 
   .slack-results-actions .button {
